@@ -1,0 +1,130 @@
+/*\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+  UTIL.H
+    the common utilities of all files are saved in this file.
+/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
+
+#ifndef __UTIL_H__
+#define __UTIL_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define STR_1(line)  	#line
+#define STR_2(line)   	STR_1(line)
+#define CODE_LOCATION   __FILE__":"STR_2(__LINE__)
+
+#if 0 /* use cprint instead */
+typedef struct {
+    pthread_t   tid; 
+    int         fd;
+    /*char        pipe_name[80];*/
+} tPIPE_TBL;
+#endif
+
+/*----------------------------------------------------
+ * TTY_PRINT() macro
+ *---------------------------------------------------*/
+#define TTY_PRINT   OSS_PRINT
+
+/************************************************************
+ * SEM_CREATE() : macro
+ *
+ * note  : os dependent
+ ************************************************************/            
+#define SEM_CREATE(S,key,val) \
+    GET_SEM(S, key, val)
+
+/************************************************************
+ * TASK_CREATE() : macro
+ *
+ * note  : os dependent
+ ************************************************************/                
+#define TASK_CREATE(fp) \
+{ \
+    if (fork() == 0){ \
+        processRegister('F',__FILE__,__func__,__LINE__); \
+		fp(); \
+	} \
+}
+
+/************************************************************
+ * MSGQ_RECEIVE() : macro
+ *
+ * input : Q - msg queue
+ *         M - message   
+ *         L - len
+ *
+ * output: M - mp
+ *         L - lp
+ *  
+ * note  : os dependent
+ ************************************************************/            
+#define MSGQ_RECEIVE(Q,M,L) \
+    RCV_MSGQ(Q, (U8*)&M, (int*)&L)
+
+/************************************************************
+ * MSGQ_SEND() : macro
+ *
+ * input : Q - msg queue
+ *         M - mail       
+ * note  : os dependent
+ ************************************************************/            
+#define MSGQ_SEND(Q,M) \
+    SND_MSGQ(Q, (char*)&M, sizeof(M))
+
+/************************************************************
+ * MSGQ_CREATE() : macro
+ *
+ * input : Q - message queue id
+ * note  : os dependent
+ ************************************************************/            
+#define MSGQ_CREATE(Q,key) \
+    GET_MSGQ(Q,key)
+
+/************************************************************/
+extern U8  			*DECODE_U16(U16 *val, U8 *mp);
+extern U8  			*DECODE_U24(U32 *val, U8 *mp);
+extern U8  			*DECODE_U32(U32 *val, U8 *mp);
+
+extern U8 			*ENCODE_U16(U8 *mp, U16 val);
+extern U8 			*ENCODE_U24(U8 *mp, U32 val);
+extern U8 			*ENCODE_U32(U8 *mp, U32 val);
+
+extern STATUS  		get_local_mac(U8 *mac, char *sif);
+
+extern U16          FletcherCheckSum(U8 *buffer, int len, int offset);
+extern U16 			iso_fletcher_checksum(U8 *buffer, int len, U16 offset);
+extern U16 			fletcher16(/*uint8_t *checkA, uint8_t *checkB,*/U8 *data, int len);
+extern U16 			fletcher16_checksum(U8 *data, int count);
+extern U32 			fletcher32_checksum(U16 *data, size_t len);
+extern U16 			RAW_CHECK_SUM(U8 *mp, U16 len);
+extern U16 			CHECK_SUM(U32 sum);
+extern U16          calc_checksum(U8 *mu, U16 len, U16 offset);
+
+extern char 		*GetStrTok(char **str, char *delimiter);
+extern char 		*Str2LowCase(char *str);
+
+extern U32          sip2ip(char *sip);
+extern void         strip2cip(const char *ipstr, U8 cip[]);
+extern void         cip2strip(U8 cip[], char *ipstr);
+extern char 		*u32Ip2dotFmt(U32 ip), 
+					*U8_STR(U8 *u8, U16 len, U8 flag),
+					*U32_STR(U32 *u32, U16 len, U8 flag),
+					*ip2sip(U32 ip);
+					
+extern void         my_bcopy(U8*, const U8*, int),
+                    my_wcopy(U16*, const U16*, int),
+                    my_dwcopy(U32*, const U32*, int),
+                    my_bzero(U8*, int);
+
+extern int          my_bcmp(const char*, const char*, int),
+                    namecmp(const U16*, const U16*, int);
+
+extern void         PRINT_MESSAGE(const char*, int);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

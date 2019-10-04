@@ -1,0 +1,1138 @@
+/*\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
+  UTIL.C
+    the common utilities of all files are saved in this file.
+/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
+
+#include    "common.h"
+
+/* Fletcher Checksum -- Refer to RFC1008. */
+#define MODX 4102 /* 5802 should be fine */
+
+/*------------------------------------------------------------
+ * get_local_mac:
+ *-----------------------------------------------------------*/
+STATUS  get_local_mac(U8 *mac, char *sif)
+{ 
+	struct ifreq 	sifreq; //socket Interface request
+	int  			fd;
+	
+	fd = socket(PF_INET,SOCK_STREAM,0);
+	if (fd < 0){
+		printf("error! can not open socket when getting mac\n");
+		return -1;
+	}
+
+	strncpy(sifreq.ifr_name, sif, IF_NAMESIZE);	
+	if (ioctl(fd, SIOCGIFHWADDR, &sifreq) != 0){
+		printf("error! ioctl failed when getting mac\n");
+		close(fd);
+		return -1;
+	}
+	memmove((void*)&mac[0], (void*)&sifreq.ifr_ifru.ifru_hwaddr.sa_data[0], 6);
+	return 0;
+}
+
+/**********************************************************************
+ * iso_fletcher_checksum :
+ *
+ * To be consistent, offset is 0-based index, rather than the 1-based
+ * index required in the specification ISO 8473, Annex C.1 
+ *
+ * input : buffer - init data porting of checksum
+ *         len - total PDU length
+ *         offset - offset from buffer
+ * output: 
+ * return: checksum(16 bits)
+ **********************************************************************/
+U16 iso_fletcher_checksum(U8 *buffer, int len, U16 offset)
+{
+ 	U8   *p;
+ 	U16  checksum=0;
+ 	U32  mul;
+ 	U32  c0;
+ 	U32  c1;
+ 	int	 x,y,i,init_len,partial_len;
+ 	
+ 	
+ 	/*
+ 	 * Zero the csum in the packet.
+ 	 *
+ 	 * U16  *csum;
+ 	 * csum = (U16*)(buffer + offset);
+ 	 * *(csum) = checksum;
+ 	 */
+ 	
+ 	p = buffer;
+ 	c0 = 0;
+ 	c1 = 0;
+ 	init_len = len;
+ 	
+ 	while(len != 0){
+ 		partial_len = MIN(len, MODX);
+
+ 		for(i=0; i<partial_len; i++,p++){
+ 			if (i < (partial_len - offset)){
+ 				//printf("c0(%02x) = c0(%02x) + p(%02x)\n",c0+*p, c0, *p);
+ 				c0 = c0 + *p;
+ 			}
+ 			//printf("c1(%02x) = c1(%02x) + c0(%02x)\n",c1+c0, c1, c0);
+ 			c1 += c0;
+ 		}
+ 		c0 = c0 % 255;
+ 		c1 = c1 % 255;
+ 		
+ 		//printf("\nlen=%d partial_len=%d; c0=%x c1=%x\n",len,partial_len,c0,c1);
+ 		len -= partial_len;
+ 	}
+ 	
+ 	mul = (init_len - offset) * c0;
+ 	
+ 	x = mul - c0 - c1;
+ 	y = c1 - mul - 1;
+ 	
+ 	if (y > 0)  y++;
+ 	if (x < 0)  x--;
+ 	
+ 	x %= 255;
+ 	y %= 255;
+ 	
+ 	if (x == 0)  x = 255;
+ 	if (y == 0)  y = 1;
+ 	
+ 	/*
+ 	* Now we write this to the packet.
+ 	* We could skip this step too, since the checksum returned would
+ 	* be stored into the checksum field by the caller.
+ 	*
+ 	buffer[offset] = x;
+ 	buffer[offset + 1] = y;
+ 	
+ 	//Take care of the endian issue
+ 	//checksum = htons((x << 8) | (y & 0xFF));
+ 	*/
+ 	
+ 	checksum = (x << 8) | (y & 0xFF);
+ 	
+ 	return checksum;
+} 
+
+#if 1 //from BRCM
+/*********************************************************************
+ * @purpose  Compute Fletcher CheckSum for LSA header field (RFC 905,
+ *                                                            ANNEX B).
+ *
+ *
+ * @param  buffer    @b{(input)}  begin of data
+ * @param  len       @b{(input)}  PDU length
+ * @param  offset    @b{(input)}  position of the first octet of the
+ *                                checksum parameter
+ *
+ * @param    c0,c1   @b{(output)}  checksum value
+ *
+ *
+ * @notes
+ *           This function computes and sets the checksum (FLETCHER algorithm).
+ *           If "offset" is NULL, then the checksum will be calculated but
+ *           the checksum bytes will not be set. If "offset" is non-NULL,
+ *           the checksum bytes at "offset" will be set such that the checksum
+ *           accumulations, when recalculated, will both be zero.
+ *
+ * @end
+ * ********************************************************************/
+U16 FletcherCheckSum(U8 *buffer, int len, int offset)
+{
+   U16  c0,c1;
+   int  cs;
+   long cl0,cl1;
+   U8   *hpp,*pls;
+
+   if(offset)
+   {
+      buffer[offset] = 0;
+      buffer[offset+1] = 0;
+   }
+
+   pls = buffer + len;
+   c0 = c1 = 0;
+   hpp = buffer;
+
+   while(hpp < pls)
+   {
+      if((c0 += *hpp++) > 254)
+         c0 -= 255;
+      if((c1 += c0) > 254)
+         c1 -= 255;
+   }
+
+   if(offset)
+   {
+      long ctmp = len - offset - 1 ;
+
+      cl0 = c0;
+      cl1 = c1;
+
+      if((cs =((ctmp * cl0) - cl1) % 255L) < 0)
+         cs += 255;
+
+      buffer[offset] = cs;
+
+      if((cs =(cl1 -((ctmp + 1L) * cl0)) % 255L) < 0)
+         cs += 255;
+
+      buffer[offset+1] = cs;
+   }
+
+   return(c0 | c1);
+}
+#endif
+
+/*-----------------------------------------------
+ * CHECK_SUM
+ *
+ *----------------------------------------------*/
+U16 CHECK_SUM(U32 sum)
+{
+    U32  value;
+    U8   carry;
+
+    carry = (U8)(sum >> 16); //get carry
+    value = sum & 0x0000ffff;
+    sum = carry + value;
+
+    carry = (U8)(sum >> 16);
+    sum += carry;
+
+    return (U16)~sum;
+}
+
+/*---------------------------------------
+ * calc_checksum :
+ *--------------------------------------*/
+U16 calc_checksum(U8 *mu, U16 len, U16 offset)
+{
+    U16  i;
+    U16  chksum;
+    U32  sum=0;
+    
+    memset(mu+offset, 0, sizeof(short));
+    for(i=0; i<len; i+=2){
+        sum += (U16)(mu[i] << 8 | mu[i+1]);
+    }
+    chksum = CHECK_SUM(sum);
+    ENCODE_U16(mu+offset,chksum);
+    //printf("%s> chksum=0x%x\n",CODE_LOCATION,chksum);
+    return chksum;
+}
+
+#if 0
+/**************************************************************************
+ * TX2_LOC_SOCK(): send data to self via "127.0.0.1"
+ *                 the naming must be a common term 
+ *
+ * Because alarm() can't waitup blocking recvfrom(), we can't but fork() a
+ * child process to take care the receiving.
+ **************************************************************************/
+STATUS TX2_LOC_SOCK(U8 *msgSent, U16 len)
+{
+	tMAIL *mail=(tMAIL*)msgSent;
+	struct sockaddr_in  LOC_sockAddr;
+	int					sockSize=sizeof(struct sockaddr_in);
+
+	bzero((char *)&LOC_sockAddr,sockSize);
+	LOC_sockAddr.sin_family = AF_INET;
+	LOC_sockAddr.sin_port = htons(mail->sockport);
+    LOC_sockAddr.sin_addr.s_addr = inet_addr("127.0.0.1"); 
+   
+    /*---------------------------------------------------------------- 
+   	 * tx data from "loc_fd" to "LOC_sockAddr"(127.0.0.1) 
+   	 * according to the tcp/udp port of msgSent.
+   	 *---------------------------------------------------------------*/
+	if (sendto(mail->sockfd,msgSent,len,0,(struct sockaddr *)&LOC_sockAddr,sockSize) < 0){
+    	sprintf(prnb(),"Error! sendto(): to port(%d)!\n",ntohs(LOC_sockAddr.sin_port));
+       	OSS_PRINT(prnb());
+       	return ERROR;
+   	}
+   	return TRUE;
+}
+#endif
+
+/*-----------------------------
+ *          OS_PRINT
+ *----------------------------*/
+void OS_PRINT(char *st)
+{
+	char	cr=0x0d;	
+	int  	i;
+	
+	for(i=0; i<strlen(st); i++){
+		write(1,&st[i],1);
+		if (st[i] == '\n'){
+			write(1,&cr,1);
+		}
+	}
+}
+
+/*----------------------------------------------------
+ * OSS_PRINT()
+ *---------------------------------------------------*/
+void OSS_PRINT(const char *fmt, ...)
+{
+	va_list  ap;
+	int		 len;
+	char     buf[255],tmp[1024];
+
+	va_start(ap,fmt);
+	vsprintf(buf,fmt,ap);
+	
+	len = strlen(buf);
+    if (buf[len-1] == '\n'){
+        buf[len] = '\r';
+        buf [len+1] = '\0';	   
+    }
+       
+	sprintf(tmp,"%s",buf);
+	write(1,tmp,len);
+	va_end(ap);	
+}
+
+/*----------------------------------------------------
+ * DECODE_LIT_ENDIAN_U16()
+ *---------------------------------------------------*/
+U16  DECODE_LIT_ENDIAN_U16(U8 *message)
+{
+	char  cc[2];
+	
+	cc[1] = *message;  cc[0] = *(message+1);
+	return *(U16*)cc;
+}
+
+/*----------------------------------------------------
+ * DECODE_LIT_ENDIAN_U24
+ *
+ * Note: first incoming byte(biggest) saved in high mem 
+ *       small value <-> in low memory
+ *	     large value <-> in high memory
+ * -+--+--+       +-------------
+ *  |  |a | ----> |  |  |  |a |
+ * -+--+--+       +-------------
+ *                  0  1  2  3
+ *---------------------------------------------------*/
+U32  DECODE_LIT_ENDIAN_U24(U8 *message)
+{
+	char  cc[3];
+	
+	cc[2] = *(message+1);
+	cc[1] = *(message+2);  	
+	cc[0] = *(message+3);
+	return *(U32*)cc;
+}
+
+/*----------------------------------------------------
+ * DECODE_LIT_ENDIAN_U32()
+ *
+ * Note: first incoming byte(biggest) saved in high mem 
+ *       small value <-> in low memory
+ *	     large value <-> in high memory
+ * -+--+--+       +-------------
+ *  |  |a | ----> |  |  |  |a |
+ * -+--+--+       +-------------
+ *                  0  1  2  3
+ *---------------------------------------------------*/
+U32  DECODE_LIT_ENDIAN_U32(U8 *message)
+{
+	char  cc[4];
+	
+	cc[3] = *message;  		cc[2] = *(message+1);
+	cc[1] = *(message+2);  	cc[0] = *(message+3);
+	return *(U32*)cc;
+}
+
+/*----------------------------------------------------
+ * DECODE_U16 :
+ *
+ * input  : mp
+ * output : val
+ *---------------------------------------------------*/
+U8  *DECODE_U16(U16 *val, U8 *mp)
+{
+#	ifdef _BIG_ENDIAN	
+	*val = *(U16*)mp;
+#	else
+	*val = DECODE_LIT_ENDIAN_U16(mp);
+#	endif
+
+	return (mp+2);
+}
+
+/*----------------------------------------------------
+ * DECODE_U24 :
+ *
+ * input  : mp
+ * output : val
+ *---------------------------------------------------*/
+U8  *DECODE_U24(U32 *val, U8 *mp)
+{
+#	ifdef _BIG_ENDIAN	
+	*val = *(U32*)mp;
+#	else
+	*val = DECODE_LIT_ENDIAN_U32(mp);
+#	endif
+
+	return (mp+3);
+}
+
+/*----------------------------------------------------
+ * DECODE_U32()
+ *
+ * input  : mp
+ * output : val
+ *---------------------------------------------------*/
+U8  *DECODE_U32(U32 *val, U8 *mp)
+{
+#	ifdef _BIG_ENDIAN	
+	*val = *(U32*)mp;
+#	else
+	*val = DECODE_LIT_ENDIAN_U32(mp);
+#	endif
+
+	return (mp+4);
+}
+
+/*----------------------------------------------------
+ * ENCODE_LIT_ENDIAN_U16
+ *---------------------------------------------------*/
+void ENCODE_LIT_ENDIAN_U16(U16 val, U8 *mp)
+{
+	U8 *cp=(U8*)&val;
+	
+	*mp++ = *(cp+1); /* biggest value will be put in the outgoing beginning addr */
+	*mp = *cp;
+}
+
+/*----------------------------------------------------------------------
+ * ENCODE_LIT_ENDIAN_U24
+ *
+ * Note: first outgoing byte(biggest) retrieved from lowest
+ *       i.e. sent from high memory which used to save biggest value.
+ *---------------------------------------------------------------------*/
+void ENCODE_LIT_ENDIAN_U24(U32 val, U8 *mp)
+{
+	U8 *cp=(U8*)&val;
+
+	*mp++ = *(cp+2); /* biggest value will be put in the outgoing beginning addr */
+	*mp++ = *(cp+1);
+	*mp = *cp;
+}
+
+/*----------------------------------------------------------------------
+ * ENCODE_LIT_ENDIAN_U32
+ *
+ * Note: first outgoing byte(biggest) retrieved from lowest
+ *       i.e. sent from high memory which used to save biggest value.
+ *---------------------------------------------------------------------*/
+void ENCODE_LIT_ENDIAN_U32(U32 val, U8 *mp)
+{
+	U8 *cp=(U8*)&val;
+	
+	*mp++ = *(cp+3); /* biggest value will be put in the outgoing beginning addr */
+	*mp++ = *(cp+2);
+	*mp++ = *(cp+1);
+	*mp = *cp;
+}
+
+/*----------------------------------------------------
+ * ENCODE_U16
+ *
+ * input  : val
+ * output : mp
+ *---------------------------------------------------*/
+U8 *ENCODE_U16(U8 *mp, U16 val)
+{
+#	ifdef _BIG_ENDIAN	
+	*(U16*)mp = val;
+#	else
+	ENCODE_LIT_ENDIAN_U16(val,mp);
+#	endif
+
+	return (mp+2);
+}
+
+/*----------------------------------------------------
+ * ENCODE_U24
+ *
+ * input  : val
+ * output : mp
+ *---------------------------------------------------*/
+U8 *ENCODE_U24(U8 *mp, U32 val)
+{
+#	ifdef _BIG_ENDIAN	
+	*(U32*)mp = val;
+#	else
+	ENCODE_LIT_ENDIAN_U24(val,mp);
+#	endif
+
+	return (mp+3);
+}
+
+/*----------------------------------------------------
+ * ENCODE_U32
+ *
+ * input  : val
+ * output : mp
+ *---------------------------------------------------*/
+U8 *ENCODE_U32(U8 *mp, U32 val)
+{
+#	ifdef _BIG_ENDIAN	
+	*(U32*)mp = val;
+#	else
+	ENCODE_LIT_ENDIAN_U32(val,mp);
+#	endif
+
+	return (mp+4);
+}
+
+#ifdef UNIX_VERSION
+/*--------------------------------------------------------------------
+ * Str2LowCase
+ *-------------------------------------------------------------------*/
+char *Str2LowCase(char *str)
+{
+	U8  i;
+
+	for(i=0; str[i]; i++)
+		if (str[i] >= 'A' && str[i] <= 'Z')  
+    		str[i] += 0x20; /* up2low case */
+    return str;
+}
+#endif
+
+/*---------------------------------------------------
+ * GetStrTok
+ *
+ * input   : cpp - points to the searched string.
+ *                 The pointed string will be modified permanently 
+ *                 after running this procedure.
+ *           delimiters - e.g. "." or "., " or just " "
+ *
+ * return  : token stored in cpp memory
+ *
+ * side-eff: cpp will go forward to the 1st char of
+ *           next token.
+ *--------------------------------------------------*/
+char*  GetStrTok(cpp,delimiters)
+char **cpp;
+char *delimiters;
+{
+    char  *token=*cpp,*old_cpp;
+    int   i,j;
+
+    if (!(**cpp) || !delimiters[0])
+        return NULL;
+
+    for(j=0; delimiters[j];){ /* skip delimiter(s) until meet the 1st valid char */
+        for(old_cpp=*cpp; **cpp && (**cpp)==delimiters[j]; (*cpp)++);
+        if (!**cpp)
+            return NULL;
+        if (old_cpp != *cpp) /* *cpp has skipped the delimiter(s), and points to a new position of string */
+            j = 0;
+        else
+            j++;
+    }
+
+    token = *cpp;
+    for(i=0;;i++,(*cpp)++){
+    	for(j=0; delimiters[j]; j++){
+            if ((**cpp) == delimiters[j] /* end of token */ || !(**cpp) /* end of string */ ||
+				(**cpp) == 0x0a || (**cpp) == 0x0d){
+                /*for(;**cpp && (**cpp)==delimiters[j]; (*cpp)++);*/
+                if (**cpp && (**cpp)!=0x0a && (**cpp)!=0x0d)  (*cpp)++;
+                /* move *cpp, otherwise token[i]='\0' will cause **cpp='\0' */
+    			token[i] = '\0';
+    			return token;
+    		}
+    	}
+    }
+    return NULL; /* Abnormal case */
+}
+
+#ifdef close
+char *GetStrTok(cpp,delimiters)
+char **cpp;
+char *delimiters;
+{
+    /*static char  token[80]="";*/
+    char  *token=*cpp;
+    int   i,j;
+
+    if (!(*cpp) || !delimiters[0])  return NULL;
+	for(; **cpp && **cpp==' '; (*cpp)++); /* skip initial continuous space(s) */
+	token = *cpp;
+	printf("\n**cpp=%s token1=%s\n",*cpp,token);
+	
+    for(i=0;;(*cpp)++){
+    	for(j=0; delimiters[j]; j++){
+    		if ((**cpp) == delimiters[j] || !(**cpp)){ /* got token */
+    			/*------------------------------------
+    			 * skip continuous space(s) 
+    			 *-----------------------------------*/
+    			if (**cpp){ /* excludes '\0'(end of string) */
+    				for((*cpp)++; **cpp && **cpp==delimiters[j]; (*cpp)++);
+    				/* Currently, *cpp has jumped to the 1st alphabet of next token */
+    			}
+    			token[i] = '\0';
+    			printf("**cpp=%s token2=%s\n",*cpp,token);
+    			return token;
+    		}
+    	}
+    	token[i++] = **cpp; 
+    }
+    return NULL; /* Abnormal case */
+}
+#endif
+
+/************************************************
+ * U8_STR
+ *    Convert octet into char string
+ *
+ * Input : flag - 'T' = Transparent
+ *                'F' = Formatized for debugging
+ ************************************************/
+char *U8_STR(U8 *u8, U16 len, U8 flag)
+{
+	static char  str[255];
+	char         tmp[10];
+    U16          i;
+
+	for(str[0]=0,i=0; i<len; i++){
+		switch(flag){
+			case 'T':
+			sprintf(tmp,"%d",*(u8+i));
+			break;
+		
+			case 'F':
+			if ((i+1) == len)  sprintf(tmp,"%02x",*(u8+i));
+			else  sprintf(tmp,"%02x.",*(u8+i));
+			break;
+		
+			case 'f': /* format includes '.', but not '0' */
+			if ((i+1) == len)  sprintf(tmp,"%x",*(u8+i));
+			else  sprintf(tmp,"%x.",*(u8+i));
+			break;
+		
+			case 'M': /* MAC */
+			if ((i+1) == len)  sprintf(tmp,"%02x",*(u8+i));
+			else  sprintf(tmp,"%02x:",*(u8+i));
+			break;
+		
+			case 'P': /* IP */
+			if ((i+1) == len)  sprintf(tmp,"%d",*(u8+i));
+			else  sprintf(tmp,"%d.",*(u8+i));
+			break;
+		
+			default:
+			tmp[0] = 0; /* error */		
+		}
+		strcat(str,tmp);
+	}
+	return str;
+}
+
+/*----------------------------------------------------
+ * ip2sip : convert U32 ip to string ip type
+ *
+ * input : U32 ip
+ * return: string ip
+ *---------------------------------------------------*/
+char* ip2sip(U32 ip)
+{
+    struct in_addr  iaddr;
+    static char     sIp[50];
+    
+    iaddr.s_addr = ip;
+    strcpy(sIp, inet_ntoa(iaddr));
+    return sIp;
+}
+
+/*----------------------------------------------------
+ * sip2ip : convert string ip type to long int ip type
+ *
+ * input : string ip 
+ * return: long ip
+ *---------------------------------------------------*/
+U32 sip2ip(char *sip)
+{
+    static struct in_addr  iaddr;
+    
+    inet_aton(sip, &iaddr); 
+    return iaddr.s_addr;
+}
+
+/*----------------------------------------------------
+ * u32Ip2dotFmt
+ *---------------------------------------------------*/
+char* u32Ip2dotFmt(U32 ip) 
+{
+    static char  tmp[255];
+    
+	sprintf(tmp,"%d.%d.%d.%d\n",
+	(U8)ip,(U8)((ip&0x0000ff00)>>8),
+	(U8)((ip&0x00ff0000)>>16),(U8)((ip&0xff000000)>>24));
+	return tmp;
+}
+
+/************************************************
+ * U32_STR
+ *    Convert octet into char string
+ *
+ * Input : u32[] - array in which each element is U32 type
+ *		   flag - 'T' = Transparent
+ *                'F' = Formatized for debugging
+ ************************************************/
+char* U32_STR(U32 *u32, U16 len, U8 flag) 
+{
+	static char  str[255];
+	char         tmp[10];
+    U16          i;
+
+	for(str[0]=0,i=0; i<len; i++){
+		if (flag == 'T'){
+			sprintf(tmp,"%d",*(u32+i));
+		}
+		else if (flag == 'F'){
+			if ((i+1) == len){
+				sprintf(tmp,"%02x",*(u32+i));
+			}
+			else{
+				sprintf(tmp,"%02x.",*(u32+i));
+			}
+		}	
+		else if (flag == 'f'){ /* format includes '.', but not '0' */
+			if ((i+1) == len){
+				sprintf(tmp,"%x",*(u32+i));
+			}
+			else{
+				sprintf(tmp,"%x.",*(u32+i));
+			}
+		}	
+		else
+			tmp[0] = 0; /* error */	
+		strcat(str,tmp);
+	}
+	return str;
+}
+
+/*----------------------------------------------------
+ * strip2cip() : convert string ip to ip[4] type
+ *
+ * input  : ipstr
+ * output : ip[4]
+ *---------------------------------------------------*/
+void strip2cip(const char *ipstr, U8 *cip)
+{
+    char  *cp,*token;
+    char  tmp[80];
+    
+    strcpy(tmp,ipstr);
+    cp = tmp;
+    token = GetStrTok(&cp,"."); /* 192 */
+    cip[0] = atoi(token);
+
+    token = GetStrTok(&cp,"."); /* 168 */
+    cip[1] = atoi(token);
+            
+    token = GetStrTok(&cp,"."); /* 1 */
+    cip[2] = atoi(token);
+            
+    token = GetStrTok(&cp,"."); /* 2 */
+    cip[3] = atoi(token);
+}
+
+/*----------------------------------------------------
+ * cip2strip() : convert ip[4] to string ip type
+ *
+ * input  : ip[4]
+ * output : ip str
+ *---------------------------------------------------*/
+void cip2strip(U8 *cip, char *ipstr)
+{
+    sprintf(ipstr,"%d.%d.%d.%d",cip[0],cip[1],cip[2],cip[3]);
+}
+             
+/*--------------------------------------------------------------
+ * ��� linux �U interface �� ip
+ *-------------------------------------------------------------*/
+STATUS GET_SYS_IP(U8 *ip)
+{
+    FILE *fp;
+    char line_str[80],*cp,*token;
+    
+    fp = fopen("/cli/Global.cfg", "r");
+    if (fp == NULL){
+        return ERROR;
+    }
+    
+    for(;;){
+        fscanf(fp,"%s",line_str);
+        if (strncmp(line_str,"WAN_IP",strlen("WAN_IP")) == 0){
+            cp = line_str;
+            token = GetStrTok(&cp,"'"); /* WAN_IP= */
+            token = GetStrTok(&cp,"'"); /* 192.168.1.2 */
+            cp = token;
+            strip2cip(cp, ip);
+            return TRUE;
+        }
+    }
+    fclose ( fp );
+    return ERROR;
+}
+
+/*--------------------------------------------------------------
+ * ��� linux �U interface �� mac
+ *-------------------------------------------------------------*/
+STATUS GET_SYS_MAC(U8 mac[])
+{
+	FILE* pipe_fd = popen("sudo bootenv_util get ethaddr1","r");
+	if(NULL != pipe_fd)
+	{
+		char buf[255];
+		if(NULL != fgets(buf, 255, pipe_fd))
+		{
+			pclose(pipe_fd);
+			int addr[6];
+			sscanf(buf, "%02X:%02X:%02X:%02X:%02X:%02X", &addr[0], &addr[1], &addr[2], &addr[3], &addr[4], &addr[5]);
+			int index;
+			for(index = 0; index < 6; index++)
+			{
+				mac[index] = addr[index];
+			}
+
+			return TRUE;
+		}
+	}
+
+	return ERROR;
+/*
+    FILE *fp;
+    char line_str[80],*cp,*token;
+    
+    fp = fopen("/cli/Global.cfg", "r");
+    if (fp == NULL){
+        return ERROR;
+    }
+    
+    for(;;){
+        fscanf(fp,"%s",line_str);
+        if (strncmp(line_str,"WAN_MAC",strlen("WAN_MAC")) == 0){
+            cp = line_str;
+            token = GetStrTok(&cp,"'"); // WAN_MAC= 
+            token = GetStrTok(&cp,"'"); // 00:11:22:xx:xx:xx
+            cp = token;
+            mac[0] = strtol(cp, &cp, 16);
+            mac[1] = strtol(cp+1, &cp, 16);
+            mac[2] = strtol(cp+1, &cp, 16);
+            mac[3] = strtol(cp+1, &cp, 16);
+            mac[4] = strtol(cp+1, &cp, 16);
+            mac[5] = strtol(cp+1, &cp, 16);
+            return TRUE;
+        }
+    }
+    fclose ( fp );
+
+    return ERROR;
+*/
+}
+
+/*************************************************************
+ * my_bcopy()
+ *
+ * purpose : byte copy from arg2 to arg1 according to arg3
+ * input   : st1, len
+ * output  : st2
+ *************************************************************/
+void my_bcopy(st1, st2, len)
+U8          *st1;
+const U8    *st2;
+int         len;
+{
+    int  i;
+
+    for(i=0; i<len; i++)
+        *(st1+i) = *(st2+i);
+}
+
+/***************************************************
+ * my_wcopy()
+ * Word copy from arg2 to arg1 according to arg3
+ * st1 : IN
+ * st2 : OUT
+ * len : IN
+ ***************************************************/
+void my_wcopy(st1,st2,len)
+U16         *st1;
+const U16   *st2;
+int         len;
+{
+    int  i;
+
+    for(i=0; i<len; i++)
+        *(st1+i) = *(st2+i);
+}
+
+/***************************************************
+ * my_dwcopy()
+ * Double Word copy from arg2 to arg1 according to arg3
+ * st1 : IN
+ * st2 : OUT
+ * len : IN
+ ***************************************************/
+void my_dwcopy(st1,st2,len)
+U32         *st1;
+const U32   *st2;
+int         len;
+{
+    int  i;
+
+    for(i=0; i<len; i++)
+        *(st1+i) = *(st2+i);
+}
+
+/************************************************************
+ * my_bzero()
+ *
+ * purpose : clear string according to length
+ * input   : st, len
+ * output  : st
+ *************************************************************/
+void my_bzero(st,len)
+U8   *st;
+int  len;
+{
+    int  i;
+
+    for(i=0; i<len; i++)
+        *(st+i) = 0;
+}
+
+/*************************************************************
+ * my_bcmp()
+ *
+ * purpose : byte comparsion for 1st with 2nd according to len
+ * input   : a, b, len
+ * return  : not equal - FALSE, equal - TRUE
+ **************************************************************/
+int my_bcmp(a, b, len)
+const char *a;
+const char *b;
+int        len;
+{
+    int i;
+
+    for(i=0; i<len; i++)
+        if (*(a+i) != *(b+i))
+            return FALSE;
+    return TRUE;
+}
+
+/************************************************************
+ * namecmp()
+ *
+ * purpose : WORD comparsion for 1st with 2nd according to len
+ * input   : name1, name2, len
+ * return  : error status
+ *************************************************************/
+int namecmp(name1, name2, len)
+const U16  *name1;
+const U16  *name2;
+int        len;
+{
+    int  i;
+
+    for(i=0; i<len; i++)
+        if (*(name1+i)!=*(name2+i))
+            return FALSE;
+    return TRUE;
+}
+
+/********************************************************************
+ * PRINT_MESSAGE()
+ *
+ ********************************************************************/
+void PRINT_MESSAGE(msg,len)
+const char  msg[];
+int         len;
+{
+#	define PRN_Q_WWDTH	2048
+
+#   define BYTE_CAN_BE_SEEN(c)   ((c>0x20 && c<=0x7e) ? TRUE:FALSE)
+    int  xi,ci;
+#	if   defined(VXW_VERSION) || defined(UNIX_VERSION)
+    char prnB[PRN_Q_WWDTH];
+#	else    
+    char prnB[PRN_Q_WDTH];
+#	endif      
+    char prnb[20];
+    int  row_cnt,rows,rest_bytes,hex_cnt,ch_cnt,cnt;
+
+
+    if (msg == NULL){
+        printf("%s","PRINT_MESSAGE(): NULL message ?\n");
+        return;
+    }
+
+#	if defined(VXW_VERSION) || defined(UNIX_VERSION)
+    if ((len*5) > PRN_Q_WWDTH){ /* 5 format bytes for one raw data byte */ 
+        printf("Too large[len(%d) > max(%d)] to print out!\n",len,PRN_Q_WWDTH);
+        return;
+    }
+#	else
+	if ((len*5) > PRN_Q_WDTH){ /* 5 format bytes for one raw data byte */
+        printf("Too large[len(%d) > max(%d)] to print out!\n",len,PRN_Q_WWDTH);
+        return;
+    }
+#	endif    
+    prnB[0] = '\0';
+    /*sprintf(prnb,"len=0x%02x\n",len);
+    strcat(prnB,prnb);*/
+
+    rest_bytes = len % 16;
+    rows = len / 16;
+    ci = xi = 0;
+
+    for(row_cnt=0; row_cnt<rows; row_cnt++){
+    	/*------------- print label for each row --------------*/
+    	sprintf(prnb,"%04x:  ",(row_cnt+1)<<4);
+    	strcat(prnB,prnb);
+    	
+        /*------------- print hex-part --------------*/
+        for(hex_cnt=1; hex_cnt<=8; hex_cnt++){
+            if (hex_cnt < 8)
+                sprintf(prnb,"%02x ",(U8)msg[xi++]); /* Must be unsigned, otherwise garbage displayed */
+            else
+                sprintf(prnb,"%02x",(U8)msg[xi++]); /* Must be unsigned, otherwise garbage displayed */
+            strcat(prnB,prnb);
+        }
+
+        /* delimiters space for each 8's Hex char */
+        strcat(prnB,"  ");
+
+        for(hex_cnt=9; hex_cnt<=16; hex_cnt++){
+            if (hex_cnt < 16)
+                sprintf(prnb,"%02x ",(U8)msg[xi++]);
+            else
+                sprintf(prnb,"%02x",(U8)msg[xi++]);
+            strcat(prnB,prnb);
+        }
+
+        /* delimiters space bet. Hex and Character row */
+        strcat(prnB,"    ");
+
+        /*------------- print character-part --------------*/
+        for(ch_cnt=1; ch_cnt<=16; ch_cnt++,ci++){
+            if (BYTE_CAN_BE_SEEN((U8)msg[ci])){
+                sprintf(prnb,"%c",msg[ci]);
+                strcat(prnB,prnb);
+            }
+            else
+                strcat(prnB,".");
+        }
+        strcat(prnB,"\n");
+    } /* for */
+    
+    /*================ print the rest bytes(hex & char) ==================*/
+    if (rest_bytes == 0){
+        strcat(prnB,"\n");
+        printf("%s",prnB);
+        return;
+    }
+
+	/*------------- print label for last row --------------*/
+    sprintf(prnb,"%04x:  ",(row_cnt+1)<<4);
+    strcat(prnB,prnb);
+    	
+    /*------------- print hex-part(rest) --------------*/
+    if (rest_bytes < 8){
+        for(hex_cnt=1; hex_cnt<=rest_bytes; hex_cnt++){
+            sprintf(prnb,"%02x ",(U8)msg[xi++]);
+            strcat(prnB,prnb);
+        }
+
+        /* fill in the space for 16's Hex-part alignment */
+        for(cnt=rest_bytes+1; cnt<=8; cnt++){ /* from rest_bytes+1 to 8 */
+            if (cnt < 8)
+                strcat(prnB,"   ");
+            else
+                strcat(prnB,"  ");
+        }
+
+        /* delimiters bet. hex and char */
+        strcat(prnB,"  ");
+
+        for(cnt=9; cnt<=16; cnt++){
+            if (cnt < 16)
+                strcat(prnB,"   ");
+            else
+                strcat(prnB,"  ");
+        }
+        strcat(prnB,"    ");
+    }
+    else if (rest_bytes == 8){
+        for(hex_cnt=1; hex_cnt<=rest_bytes; hex_cnt++){
+            if (hex_cnt < 8)
+                sprintf(prnb,"%02x ",(U8)msg[xi++]);
+            else
+                sprintf(prnb,"%02x",(U8)msg[xi++]);
+            strcat(prnB,prnb);
+        }
+        strcat(prnB,"  ");
+
+        for(cnt=9; cnt<=16; cnt++){
+            if (cnt < 16)
+                strcat(prnB,"   ");
+            else
+                strcat(prnB,"  ");
+        }
+        strcat(prnB,"    ");
+    }
+    else{ /* rest_bytes > 8 */
+        for(hex_cnt=1; hex_cnt<=8; hex_cnt++){
+            if (hex_cnt < 8)
+                sprintf(prnb,"%02x ",(U8)msg[xi++]);
+            else
+                sprintf(prnb,"%02x",(U8)msg[xi++]);
+            strcat(prnB,prnb);
+        }
+
+        /* delimiters space for each 8's Hex char */
+        strcat(prnB,"  ");
+
+        for(hex_cnt=9; hex_cnt<=rest_bytes; hex_cnt++){ /* 9 - rest_bytes */
+            if (hex_cnt < 16)
+                sprintf(prnb,"%02x ",(U8)msg[xi++]);
+            else
+                sprintf(prnb,"%02x",(U8)msg[xi++]);
+            strcat(prnB,prnb);
+        }
+
+        for(cnt=rest_bytes+1; cnt<=16; cnt++){
+            if (cnt < 16)
+                strcat(prnB,"   ");
+            else
+                strcat(prnB,"  ");
+        }
+        /* delimiters space bet. Hex and Character row */
+        strcat(prnB,"    ");
+    } /* else */
+
+    /*------------- print character-part --------------*/
+    for(ch_cnt=1; ch_cnt<=rest_bytes; ch_cnt++,ci++){
+        if (BYTE_CAN_BE_SEEN((U8)msg[ci])){
+            sprintf(prnb,"%c",msg[ci]);
+            strcat(prnB,prnb);
+        }
+        else
+            strcat(prnB,".");
+    }
+    strcat(prnB,"\n");
+
+    printf(prnB);
+}
