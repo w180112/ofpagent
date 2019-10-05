@@ -26,7 +26,7 @@ typedef struct ofp_header {
 }ofp_header_t;
 OFP_ASSERT(sizeof(struct ofp_header) == 8);
 
-struct ofp_multipart { 
+typedef struct ofp_multipart { 
 	struct ofp_header ofp_header; 
 	uint16_t type;
 	uint16_t flags;

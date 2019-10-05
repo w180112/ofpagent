@@ -43,7 +43,7 @@ typedef enum {
 extern	"C" {
 #endif
 
-extern STATUS   OFP_FSM(tOFP_PORT*, U16, void*); 
+extern STATUS   OFP_FSM(tOFP_PORT*, U16); 
 
 #ifdef __cplusplus
 }

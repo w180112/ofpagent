@@ -100,7 +100,7 @@ int main(int argc, char **argv)
 	extern STATUS	OFP_FSM(tOFP_PORT *port_ccb, U16 event);
 	tIPC_PRIM		*ipc_prim;
     tOFP_MBX		*mail;
-	tOFP_PORT		*ccb, ofp_header;
+	tOFP_PORT		*ccb;
 	tMBUF   		mbuf;
 	int				msize;
 	U16				port;
@@ -114,7 +114,7 @@ int main(int argc, char **argv)
     }
     signal(SIGINT,OFP_bye);
     
-    OFP_FSM(&ofp_ports[TEST_PORT_ID], Q_link_up, 0);
+    OFP_FSM(&ofp_ports[TEST_PORT_ID], E_START);
     
 	for(;;){
 		//printf("\n===============================================\n");
@@ -133,7 +133,7 @@ int main(int argc, char **argv)
 				ipc_prim = (tIPC_PRIM*)mbuf.mtext;
 				ccb = ipc_prim->ccb;
 				event = ipc_prim->evt;
-				OFP_FSM(ccb, event, 0);
+				OFP_FSM(ccb, event);
 			}
 			break;
 		
