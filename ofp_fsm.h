@@ -14,7 +14,7 @@ typedef struct{
     U8   	state;
     U16   	event;
     U8   	next_state;
-    STATUS 	(*hdl[10])(tOFP_PORT *ccb, void *m);
+    STATUS 	(*hdl[10])(tOFP_PORT *ccb);
 } tOFP_STATE_TBL;
 
 /*--------- STATE TYPE ----------*/

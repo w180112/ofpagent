@@ -14,6 +14,7 @@
 #include    	"ofp_fsm.h"
 #include		"ofp_dbg.h"
 #include 		<ifaddrs.h>
+#include		<inttypes.h>
 
 char 			*OFP_state2str(U16 state);
 
@@ -104,7 +105,7 @@ STATUS OFP_FSM(tOFP_PORT *port_ccb, U16 event)
  * A_check_up_port_cfg: 
  *
  *********************************************************************/
-STATUS A_send_hello(tOFP_PORT *port_ccb, void *m)	
+STATUS A_send_hello(tOFP_PORT *port_ccb)	
 {
 	unsigned char buffer[256];
 	struct ofp_header of_header;
@@ -124,7 +125,7 @@ STATUS A_send_hello(tOFP_PORT *port_ccb, void *m)
  * A_config_port: 
  *
  *********************************************************************/
-STATUS A_send_echo_request(tOFP_PORT *port_ccb, void *m)	
+STATUS A_send_echo_request(tOFP_PORT *port_ccb)	
 {
 	unsigned char buffer[256];
 	ofp_header_t ofp_header;
@@ -132,7 +133,7 @@ STATUS A_send_echo_request(tOFP_PORT *port_ccb, void *m)
 	ofp_header.version = 0x04;
 	ofp_header.type = OFPT_ECHO_REQUEST;
 	uint16_t length = ofp_header.length = sizeof(struct ofp_header);
-	ofp_header.length = htons(of_header.length);
+	ofp_header.length = htons(ofp_header.length);
 	ofp_header.xid = 0;
 
 	drv_xmit(buffer, length);
@@ -144,11 +145,12 @@ STATUS A_send_echo_request(tOFP_PORT *port_ccb, void *m)
  * A_send_feature_reply: 
  *
  *********************************************************************/
-STATUS A_send_feature_reply(tOFP_PORT *port_ccb, void *m)	
+STATUS A_send_feature_reply(tOFP_PORT *port_ccb)	
 {
 	unsigned char buffer[256];
 	ofp_switch_features_t ofp_switch_features;
-	struct ifaddrs *ifaddr, *ifa;
+	struct ifaddrs *ifaddr;
+	struct ifaddrs *ifa;
 
 	ofp_switch_features.ofp_header.version = 0x04;
 	ofp_switch_features.ofp_header.type = OFPT_FEATURES_REPLY;
@@ -194,7 +196,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb, void *m)
  * A_start_timer: 
  *
  *********************************************************************/
-STATUS A_start_timer(tOFP_PORT *port_ccb, void *m)
+STATUS A_start_timer(tOFP_PORT *port_ccb)
 {
 	DBG_OFP(DBGLVL1,port_ccb,"start query timer(%ld secs)\n",ofp_interval/SEC);
 	//OSTMR_StartTmr(ofpQid, port_ccb, ofp_interval, "ofp:txT", Q_ofp_query_expire);
@@ -231,11 +233,12 @@ STATUS A_query_tmr_expire(tOFP_PORT *port_ccb, void *m)
  * A_send_multipart_reply: 
  *
  *********************************************************************/
-STATUS A_send_multipart_reply(tOFP_PORT *port_ccb, void *m)
+STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 {
 	ofp_multipart_t ofp_multipart;
 	struct ofp_port ofp_port_desc;
-	struct ifaddrs *ifaddr, *ifa;
+	struct ifaddrs *ifaddr; 
+	struct ifaddrs *ifa;
 	U8 buf[256];
 	uintptr_t buf_ptr;
 
@@ -246,7 +249,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb, void *m)
 
 	ofp_multipart = port_ccb->ofp_multipart;
 	ofp_multipart.ofp_header.type = OFPT_MULTIPART_REPLY;
-	buf_ptr = buf + sizeof(ofp_multipart_t);
+	buf_ptr = (uintptr_t)(buf + sizeof(ofp_multipart_t));
 	ofp_multipart.ofp_header.length = sizeof(ofp_multipart_t);
 
 	memset(&ofp_port_desc,0,sizeof(struct ofp_port));
@@ -264,13 +267,13 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb, void *m)
  		ioctl(fd,SIOCGIFHWADDR,&ifr);
     	close(fd);
     	memcpy(ofp_port_desc.hw_addr,(unsigned char *)ifr.ifr_hwaddr.sa_data,OFP_ETH_ALEN);
-		memcpy(buf+buf_ptr,&ofp_port_desc,sizeof(ofp_port));
+		memcpy(buf+buf_ptr,&ofp_port_desc,sizeof(struct ofp_port));
 		buf_ptr += sizeof(ofp_port);
-		ofp_multipart.ofp_header.length += sizeof(ofp_port);
+		ofp_multipart.ofp_header.length += sizeof(struct ofp_port);
 	}
 	uint16_t length = ofp_multipart.ofp_header.length;
 	ofp_multipart.ofp_header.length = htons(ofp_multipart.ofp_header.length);
-	memcpy(buf,ofp_multipart,sizeof(ofp_multipart_t));
+	memcpy(buf,&ofp_multipart,sizeof(ofp_multipart_t));
 	drv_xmit(buf,length);
 	freeifaddrs(ifaddr);
 	return TRUE;
@@ -299,10 +302,10 @@ char *OFP_state2str(U16 state)
 
 	U8  i;
 	
-	for(i=0; ofp_state_desc_tbl[i].state != S_INVLD; i++){
+	for(i=0; ofp_state_desc_tbl[i].state != S_INVALID; i++){
 		if (ofp_state_desc_tbl[i].state == state)  break;
 	}
-	if (ofp_state_desc_tbl[i].state == S_INVLD){
+	if (ofp_state_desc_tbl[i].state == S_INVALID){
 		return NULL;
 	}
 	return ofp_state_desc_tbl[i].str;
