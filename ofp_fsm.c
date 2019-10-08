@@ -18,11 +18,11 @@
 
 char 			*OFP_state2str(U16 state);
 
-static STATUS 	A_send_hello(tOFP_PORT*, void*);
-static STATUS 	A_send_echo_request(tOFP_PORT*, void*);
-static STATUS   A_send_feature_reply(tOFP_PORT*, void*);
-static STATUS   A_send_multipart_reply(tOFP_PORT*, void*);
-static STATUS   A_start_timer(tOFP_PORT*, void*);
+static STATUS 	A_send_hello(tOFP_PORT*);
+static STATUS 	A_send_echo_request(tOFP_PORT*);
+static STATUS   A_send_feature_reply(tOFP_PORT*);
+static STATUS   A_send_multipart_reply(tOFP_PORT*);
+static STATUS   A_start_timer(tOFP_PORT*);
 
 tOFP_STATE_TBL  ofp_fsm_tbl[] = { 
 /*//////////////////////////////////////////////////////////////////////////////////
@@ -241,6 +241,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	struct ifaddrs *ifa;
 	U8 buf[256];
 	uintptr_t buf_ptr;
+	int i;
 
 	if (getifaddrs(&ifaddr) == -1) {
     	perror("getifaddrs");
@@ -253,7 +254,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	ofp_multipart.ofp_header.length = sizeof(ofp_multipart_t);
 
 	memset(&ofp_port_desc,0,sizeof(struct ofp_port));
-	for(int i=0,ifa=ifaddr; ifa != NULL; i++, ifa=ifa->ifa_next) {
+	for(i=0,ifa=ifaddr; ifa != NULL; i++, ifa=ifa->ifa_next) {
 		if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_PACKET) 
 			continue;
 		ofp_port_desc.port_no = i;
@@ -268,7 +269,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
     	close(fd);
     	memcpy(ofp_port_desc.hw_addr,(unsigned char *)ifr.ifr_hwaddr.sa_data,OFP_ETH_ALEN);
 		memcpy(buf+buf_ptr,&ofp_port_desc,sizeof(struct ofp_port));
-		buf_ptr += sizeof(ofp_port);
+		buf_ptr += sizeof(sizeof(ofp_port));
 		ofp_multipart.ofp_header.length += sizeof(struct ofp_port);
 	}
 	uint16_t length = ofp_multipart.ofp_header.length;
@@ -291,7 +292,7 @@ char *OFP_state2str(U16 state)
 {
 	static struct {
 		OFP_STATE	state;
-		char		str[10];
+		char		str[20];
 	} ofp_state_desc_tbl[] = {
     	{ S_CLOSED,  		"CLOSED  " },
     	{ S_HELLO_WAIT,  	"WAIT_HELLO    " },
