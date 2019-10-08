@@ -7,7 +7,7 @@
 ######################################	
 CC	= gcc -g
 INCLUDE = -I. -I./com_util
-CFLAGS = $(INCLUDE) -Wall -fPIC -g
+CFLAGS = $(INCLUDE) -Wall -fPIC -g -std=c99
 
 TARGET = ofagent
 SRC = ofpd.c ofp_sock.c ofp_fsm.c ofp_codec.c ofp_dbg.c

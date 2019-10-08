@@ -139,10 +139,10 @@ int main(int argc, char **argv)
 		
 		case IPC_EV_TYPE_DRV:
 			mail = (tOFP_MBX*)mbuf.mtext;
-			ofp_ports[port].port = TEST_PORT_ID;
+			//ofp_ports[port].port = TEST_PORT_ID;
 			DBG_OFP(DBGLVL1,&ofp_ports[TEST_PORT_ID],"<-- Rx ofp message\n");
 			if (OFP_decode_frame(mail, &ofp_ports[0]) == ERROR) {
-				ofp_ports[port].err_imsg_cnt++;
+				//ofp_ports[port].err_imsg_cnt++;
 				continue;
 			}
 			OFP_FSM(&ofp_ports[TEST_PORT_ID], event);

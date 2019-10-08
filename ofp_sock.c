@@ -15,6 +15,7 @@ struct ifreq	ethreq;
 static struct   sockaddr_ll 	sll;  
 int				ofpSockSize = sizeof(struct sockaddr_in);
 int				ofp_io_fds[10];
+fd_set			ofp_io_ready;
 
 /**************************************************************************
  * OFP_SOCK_INIT :

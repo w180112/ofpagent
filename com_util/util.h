@@ -44,7 +44,7 @@ rte_constant_bswap64(uint64_t x)
 static inline uint64_t rte_arch_bswap64(uint64_t _x)
 {
 	  uint64_t x = _x;
-	  asm volatile ("bswap %[x]"
+	  __asm__ volatile ("bswap %[x]"
 		        : [x] "+r" (x)
 		        );
 	  return x;

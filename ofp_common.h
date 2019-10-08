@@ -33,7 +33,7 @@ typedef struct ofp_multipart {
 	uint8_t pad[4]; 
 	uint8_t body[0];
 }ofp_multipart_t;
-OFP_ASSERT(sizeof(struct ofp_multipart) == 8);
+OFP_ASSERT(sizeof(struct ofp_multipart) == 16);
 
 struct ofp_port {
     uint32_t port_no;

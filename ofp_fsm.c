@@ -13,6 +13,7 @@
 #include    	"ofp_sock.h"
 #include    	"ofp_fsm.h"
 #include		"ofp_dbg.h"
+#include 		<ifaddrs.h>
 
 char 			*OFP_state2str(U16 state);
 
@@ -48,7 +49,7 @@ tOFP_STATE_TBL  ofp_fsm_tbl[] = {
  *           arg - signal(primitive) or pdu
  * return  : error status
  ***********************************************************************/
-STATUS OFP_FSM(tOFP_PORT *port_ccb, U16 event, void *arg)
+STATUS OFP_FSM(tOFP_PORT *port_ccb, U16 event)
 {	
     register int  	i,j;
     STATUS			retval;
@@ -60,11 +61,11 @@ STATUS OFP_FSM(tOFP_PORT *port_ccb, U16 event, void *arg)
     }
     
     /* Find a matched state */
-    for(i=0; ofp_fsm_tbl[i].state!=S_PORT_INVLD; i++)
+    for(i=0; ofp_fsm_tbl[i].state!=S_INVALID; i++)
         if (ofp_fsm_tbl[i].state == port_ccb->state)
             break;
 
-    if (ofp_fsm_tbl[i].state == S_PORT_INVLD){
+    if (ofp_fsm_tbl[i].state == S_INVALID){
         DBG_OFP(DBGLVL1,port_ccb,"Error! unknown state(%d) specified for the event(%d)\n",
         	port_ccb->state,event);
         return FALSE;
@@ -93,7 +94,7 @@ STATUS OFP_FSM(tOFP_PORT *port_ccb, U16 event, void *arg)
     }
     
 	for(j=0; ofp_fsm_tbl[i].hdl[j]; j++){
-       	retval = (*ofp_fsm_tbl[i].hdl[j])(port_ccb,(void*)arg);
+       	retval = (*ofp_fsm_tbl[i].hdl[j])(port_ccb);
        	if (!retval)  return TRUE;
     }
     return TRUE;
@@ -126,13 +127,13 @@ STATUS A_send_hello(tOFP_PORT *port_ccb, void *m)
 STATUS A_send_echo_request(tOFP_PORT *port_ccb, void *m)	
 {
 	unsigned char buffer[256];
-	struct ofp_switch_features_t ofp_switch_features;
+	ofp_header_t ofp_header;
 
-	of_header.version = 0x04;
-	of_header.type = OFPT_ECHO_REQUEST;
-	uint16_t length = of_header.length = sizeof(struct ofp_header);
-	of_header.length = htons(of_header.length);
-	of_header.xid = 0;
+	ofp_header.version = 0x04;
+	ofp_header.type = OFPT_ECHO_REQUEST;
+	uint16_t length = ofp_header.length = sizeof(struct ofp_header);
+	ofp_header.length = htons(of_header.length);
+	ofp_header.xid = 0;
 
 	drv_xmit(buffer, length);
 
@@ -154,7 +155,6 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb, void *m)
 	ofp_switch_features.ofp_header.length = sizeof(struct ofp_header);
 	ofp_switch_features.ofp_header.xid = 0;
 
-	strcpy(ofp_port_desc.name,ifa.ifa_name);
 	int fd;
     struct ifreq ifr;
 	uint64_t tmp;
@@ -165,15 +165,16 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb, void *m)
   	}
     fd = socket(AF_INET, SOCK_DGRAM, 0);
  	ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name,ifa.ifa_name,IFNAMSIZ-1);
+    strncpy(ifr.ifr_name,ifa->ifa_name,IFNAMSIZ-1);
  	ioctl(fd,SIOCGIFHWADDR,&ifr);
     close(fd);
+	freeifaddrs(ifaddr);
 	ofp_switch_features.datapath_id = 0x0;
 	for(int i=5; i>=0; i--) {
         tmp = ifr.ifr_hwaddr.sa_data[i];
         ofp_switch_features.datapath_id += tmp << (i*8);
     }
-	printf("%llx\n", ofp_switch_features.datapath_id);
+	printf("%"PRIu64"\n", ofp_switch_features.datapath_id);
 	ofp_switch_features.datapath_id = bitswap64(ofp_switch_features.datapath_id);
 	ofp_switch_features.n_buffers = htonl(256);
 	ofp_switch_features.n_tables = 254;
@@ -181,7 +182,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb, void *m)
 	ofp_switch_features.capabilities = OFPC_FLOW_STATS | OFPC_PORT_STATS | OFPC_QUEUE_STATS;
 	ofp_switch_features.capabilities = htonl(ofp_switch_features.capabilities);
 	ofp_switch_features.ofp_header.length += sizeof(ofp_switch_features_t);
-	length = ofp_switch_features.ofp_header.length;
+	uint16_t length = ofp_switch_features.ofp_header.length;
 	ofp_switch_features.ofp_header.length = htons(ofp_switch_features.ofp_header.length);
 
 	drv_xmit(buffer, length);
@@ -196,8 +197,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb, void *m)
 STATUS A_start_timer(tOFP_PORT *port_ccb, void *m)
 {
 	DBG_OFP(DBGLVL1,port_ccb,"start query timer(%ld secs)\n",ofp_interval/SEC);
-	OSTMR_StartTmr(ofpQid, port_ccb, ofp_interval, "ofp:txT", Q_ofp_query_expire);
-	
+	//OSTMR_StartTmr(ofpQid, port_ccb, ofp_interval, "ofp:txT", Q_ofp_query_expire);
 	
 	return TRUE;
 }
@@ -254,13 +254,13 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb, void *m)
 		if (ifa->ifa_addr == NULL || ifa->ifa_addr->sa_family != AF_PACKET) 
 			continue;
 		ofp_port_desc.port_no = i;
-		strcpy(ofp_port_desc.name,ifa.ifa_name);
+		strcpy(ofp_port_desc.name,ifa->ifa_name);
 		int fd;
     	struct ifreq ifr;
  
     	fd = socket(AF_INET, SOCK_DGRAM, 0);
  		ifr.ifr_addr.sa_family = AF_INET;
-    	strncpy(ifr.ifr_name,ifa.ifa_name,IFNAMSIZ-1);
+    	strncpy(ifr.ifr_name,ifa->ifa_name,IFNAMSIZ-1);
  		ioctl(fd,SIOCGIFHWADDR,&ifr);
     	close(fd);
     	memcpy(ofp_port_desc.hw_addr,(unsigned char *)ifr.ifr_hwaddr.sa_data,OFP_ETH_ALEN);
