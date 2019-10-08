@@ -12,7 +12,6 @@
 #include		"ofpd.h"
 
 struct ifreq	ethreq;
-static struct   sockaddr_ll 	sll;  
 int				ofpSockSize = sizeof(struct sockaddr_in);
 int				ofp_io_fds[10];
 fd_set			ofp_io_ready;
@@ -27,8 +26,6 @@ fd_set			ofp_io_ready;
 int OFP_SOCK_INIT() 
 {
 	struct sockaddr_in sock_info;
-
-	struct ifreq		ethreq;
 	
     if ((ofp_io_fds[0]=socket(AF_INET, SOCK_STREAM, 0)) < 0){
 	    printf("socket");

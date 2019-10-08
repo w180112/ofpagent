@@ -150,7 +150,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
 	unsigned char buffer[256];
 	ofp_switch_features_t ofp_switch_features;
 	struct ifaddrs *ifaddr;
-	struct ifaddrs *ifa;
+	//struct ifaddrs *ifa;
 
 	ofp_switch_features.ofp_header.version = 0x04;
 	ofp_switch_features.ofp_header.type = OFPT_FEATURES_REPLY;
@@ -160,6 +160,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
 	int fd;
     struct ifreq ifr;
 	uint64_t tmp;
+	char *eth_name = "ens8";
 
 	if (getifaddrs(&ifaddr) == -1) {
     	perror("getifaddrs");
@@ -167,7 +168,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
   	}
     fd = socket(AF_INET, SOCK_DGRAM, 0);
  	ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name,ifa->ifa_name,IFNAMSIZ-1);
+    strncpy(ifr.ifr_name,eth_name,IFNAMSIZ-1);
  	ioctl(fd,SIOCGIFHWADDR,&ifr);
     close(fd);
 	freeifaddrs(ifaddr);
@@ -269,7 +270,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
     	close(fd);
     	memcpy(ofp_port_desc.hw_addr,(unsigned char *)ifr.ifr_hwaddr.sa_data,OFP_ETH_ALEN);
 		memcpy(buf+buf_ptr,&ofp_port_desc,sizeof(struct ofp_port));
-		buf_ptr += sizeof(sizeof(ofp_port));
+		buf_ptr += sizeof(struct ofp_port);
 		ofp_multipart.ofp_header.length += sizeof(struct ofp_port);
 	}
 	uint16_t length = ofp_multipart.ofp_header.length;

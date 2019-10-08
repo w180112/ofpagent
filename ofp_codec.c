@@ -23,8 +23,7 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 {
     U16	mulen;
 	U8	*mu;
-	U8	i; 
-
+	
 	if (mail->len > ETH_MTU){
 	    DBG_OFP(DBGLVL1,0,"error! too large frame(%d)\n",mail->len);
 	    return ERROR;
@@ -34,17 +33,18 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 	mulen = mail->len;
 
     //PRINT_MESSAGE(mu,mulen);
-	switch (ofp_header->type) {
+	switch(((ofp_header_t *)(mu+66))->type) {
 	case OFPT_HELLO:
 		port_ccb->event = E_RECV_HELLO;
+		memcpy(&(port_ccb->ofp_header),mu,sizeof(ofp_header_t));
 		break;
 	case OFPT_FEATURES_REQUEST:
 		port_ccb->event = E_FEATURE_REQUEST;
-		port_ccb->ofp_header.xid = (ofp_header_t *)mu->xid;
+		memcpy(&(port_ccb->ofp_header),mu,sizeof(ofp_header_t));
 		break;
 	case OFPT_MULTIPART_REQUEST:
 		port_ccb->event = E_MULTIPART_REQUEST;
-		memcpy(port_ccb->ofp_multipart,mu,port_ccb->ofp_multipart.ofp_header.length);
+		memcpy(&(port_ccb->ofp_multipart),mu,htons(port_ccb->ofp_multipart.ofp_header.length));
 		break;
 	case OFPT_ECHO_REPLY:
 		port_ccb->event = E_OTHERS;

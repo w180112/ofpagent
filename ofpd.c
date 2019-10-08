@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 	tOFP_PORT		*ccb;
 	tMBUF   		mbuf;
 	int				msize;
-	U16				port;
+	//U16				port;
 	U16				event;
 	U16				ipc_type;
 	
