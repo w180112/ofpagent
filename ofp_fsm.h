@@ -36,6 +36,8 @@ typedef enum {
   E_MULTIPART_REQUEST,
   E_OTHERS,
   E_ECHO_REPLY,
+  E_OFP_TIMEOUT,
+  E_OFP_CACHE_TIMEOUT,
 } OFP_EVENT_TYPE;
 
 /*======================= external ==========================*/

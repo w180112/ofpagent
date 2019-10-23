@@ -33,22 +33,24 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 	mulen = mail->len;
 
     //PRINT_MESSAGE(mu,mulen);
-	switch(((ofp_header_t *)(mu+66))->type) {
+	switch(((ofp_header_t *)mu)->type) {
 	case OFPT_HELLO:
 		port_ccb->event = E_RECV_HELLO;
 		memcpy(&(port_ccb->ofp_header),mu,sizeof(ofp_header_t));
 		break;
 	case OFPT_FEATURES_REQUEST:
+		printf("----------------------------------\nrecv feature request\n");
 		port_ccb->event = E_FEATURE_REQUEST;
 		memcpy(&(port_ccb->ofp_header),mu,sizeof(ofp_header_t));
 		break;
 	case OFPT_MULTIPART_REQUEST:
+		printf("----------------------------------\nrecv multipart\n");
 		port_ccb->event = E_MULTIPART_REQUEST;
-		memcpy(&(port_ccb->ofp_multipart),mu,htons(port_ccb->ofp_multipart.ofp_header.length));
+		memcpy(&(port_ccb->ofp_multipart),mu,sizeof(ofp_multipart_t));
 		break;
 	case OFPT_ECHO_REPLY:
-		port_ccb->event = E_OTHERS;
-		printf("recv echo reply\n");
+		port_ccb->event = E_ECHO_REPLY;
+		printf("----------------------------------\nrecv echo reply\n");
 		break;
 	case OFPT_FLOW_MOD:
 		port_ccb->event = E_OTHERS;

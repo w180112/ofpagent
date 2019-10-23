@@ -87,6 +87,7 @@ void ofpdInit(void)
 	}
     
 	sleep(1);
+	ofp_max_msg_per_query = MAX_OFP_QUERY_NUM;
 	ofp_testEnable = TRUE; //to let driver ofp msg come in ...
 	DBG_OFP(DBGLVL1,NULL,"============ ofp init successfully ==============\n");
 }
@@ -114,7 +115,7 @@ int main(int argc, char **argv)
     }
     signal(SIGINT,OFP_bye);
     
-    OFP_FSM(&ofp_ports[TEST_PORT_ID], E_START);
+    OFP_FSM(&ofp_ports[0], E_START);
     
 	for(;;){
 		//printf("\n===============================================\n");
@@ -140,12 +141,12 @@ int main(int argc, char **argv)
 		case IPC_EV_TYPE_DRV:
 			mail = (tOFP_MBX*)mbuf.mtext;
 			//ofp_ports[port].port = TEST_PORT_ID;
-			DBG_OFP(DBGLVL1,&ofp_ports[TEST_PORT_ID],"<-- Rx ofp message\n");
+			DBG_OFP(DBGLVL1,&ofp_ports[0],"<-- Rx ofp message\n");
 			if (OFP_decode_frame(mail, &ofp_ports[0]) == ERROR) {
 				//ofp_ports[port].err_imsg_cnt++;
 				continue;
 			}
-			OFP_FSM(&ofp_ports[TEST_PORT_ID], event);
+			OFP_FSM(&ofp_ports[0], ofp_ports[0].event);
 			break;
 		
 		//case IPC_EV_TYPE_CLI:

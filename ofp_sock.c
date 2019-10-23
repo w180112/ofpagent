@@ -62,7 +62,7 @@ void ofp_sockd(void)
 	** to.tv_sec = 1;  ie. non-blocking; "select" will return immediately; =polling 
     ** to.tv_usec = 0; ie. blocking
     */
-	for(;;){    
+	for(;;) {    
 		if ((n=select(ofp_io_fds[0]+1,&ofp_io_ready,(fd_set*)0,(fd_set*)0,NULL/*&to*/))<0){
    		    /* if "to" = NULL, then "select" will block indefinite */
    			printf("select error !!! Giveup this receiving.\n");
@@ -97,8 +97,8 @@ void ofp_sockd(void)
  **************************************************************/
 void drv_xmit(U8 *mu, U16 mulen)
 {
-	//printf("drv_xmit ............\n");
-	//PRINT_MESSAGE((char*)mu, mulen);
+	printf("drv_xmit ............\n");
+	PRINT_MESSAGE((char*)mu, mulen);
 	send(ofp_io_fds[0], mu, mulen, 0);
 }
 

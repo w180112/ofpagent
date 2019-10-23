@@ -17,7 +17,7 @@
 #define _PBM(port)				(1<<(port-1))
 
 #define MAX_USER_PORT_NUM		44
-#define MAX_OFP_QUERY_NUM		1
+#define MAX_OFP_QUERY_NUM		10
 #define DEF_QUERY_INTERVAL		2
 #define	OFP_MAX_OPT_TLV_NUM	10
 #define	OFP_MAX_SUB_OPT_TLV_NUM 20
@@ -163,4 +163,4 @@ typedef enum {
 	OFPT_SET_ASYNC,
 	/* Meters and rate limiters configuration messages. */
 	OFPT_METER_MOD,
-};
+}OFPT_t;
