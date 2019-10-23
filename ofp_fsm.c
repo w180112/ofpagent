@@ -121,7 +121,7 @@ STATUS A_send_hello(tOFP_PORT *port_ccb)
 	of_header.type = OFPT_HELLO;
 	uint16_t length = of_header.length = sizeof(struct ofp_header);
 	of_header.length = htons(of_header.length);
-	of_header.xid = 0x45
+	of_header.xid = 0x45;
 	memcpy(buffer,&of_header,sizeof(struct ofp_header));
 	drv_xmit(buffer, length);
 	printf("send hello message\n");
@@ -223,7 +223,7 @@ STATUS A_start_timer(tOFP_PORT *port_ccb)
  * A_stop_query_tmr: 
  *
  *********************************************************************/
-STATUS A_stop_query_tmr(tOFP_PORT *port_ccb, void *m)
+STATUS A_stop_query_tmr(tOFP_PORT *port_ccb)
 {
 	DBG_OFP(DBGLVL1,port_ccb,"stop query timer\n");
 	OSTMR_StopXtmr(port_ccb,E_OFP_TIMEOUT);
@@ -234,7 +234,7 @@ STATUS A_stop_query_tmr(tOFP_PORT *port_ccb, void *m)
  * A_query_tmr_expire: 
  *
  *********************************************************************/
-STATUS A_query_tmr_expire(tOFP_PORT *port_ccb, void *m)
+STATUS A_query_tmr_expire(tOFP_PORT *port_ccb)
 {
 	DBG_OFP(DBGLVL1,port_ccb,"query timer expired\n");
 	port_ccb->query_cnt++;
