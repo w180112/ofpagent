@@ -32,6 +32,9 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 	mu = mail->refp;
 	mulen = mail->len;
 
+	if (((ofp_header_t *)mu)->version == 0) {
+		port_ccb->event = E_PACKET_IN;
+	}
     //PRINT_MESSAGE(mu,mulen);
 	switch(((ofp_header_t *)mu)->type) {
 	case OFPT_HELLO:
@@ -69,9 +72,13 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 	return TRUE;
 }
 
-#if 0
+
 /*============================== ENCODING ===============================*/
 
+void OFP_encode_packet_in() {
+	printf("----------------------------------\nencode packet in\n");
+}
+#if 0
 /*************************************************************************
  * OFP_encode_frame
  *

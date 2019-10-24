@@ -123,7 +123,7 @@ STATUS A_send_hello(tOFP_PORT *port_ccb)
 	of_header.length = htons(of_header.length);
 	of_header.xid = 0x45;
 	memcpy(buffer,&of_header,sizeof(struct ofp_header));
-	drv_xmit(buffer, length);
+	drv_xmit(buffer, length, CP_FD);
 	printf("send hello message\n");
 
 	return TRUE;
@@ -145,7 +145,7 @@ STATUS A_send_echo_request(tOFP_PORT *port_ccb)
 	ofp_header.xid = 0;
 
 	memcpy(buffer, &ofp_header, length);
-	drv_xmit(buffer, length);
+	drv_xmit(buffer, length, CP_FD);
 
 	return TRUE;
 }
@@ -198,7 +198,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
 	ofp_switch_features.ofp_header.length = htons(ofp_switch_features.ofp_header.length);
 
 	memcpy(buffer, &ofp_switch_features, length);
-	drv_xmit(buffer, length);
+	drv_xmit(buffer, length, CP_FD);
 
 	return TRUE;
 }
@@ -298,7 +298,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	uint16_t length = ofp_multipart.ofp_header.length;
 	ofp_multipart.ofp_header.length = htons(ofp_multipart.ofp_header.length);
 	memcpy(buf, &ofp_multipart, sizeof(ofp_multipart_t));
-	drv_xmit(buf, length);
+	drv_xmit(buf, length, CP_FD);
 	freeifaddrs(ifaddr);
 	return TRUE;
 }

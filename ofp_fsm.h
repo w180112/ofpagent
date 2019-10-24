@@ -40,6 +40,7 @@ typedef enum {
   E_OFP_CACHE_TIMEOUT,
   E_PACKET_FROM_HOST,
   E_PACKET_OUT,
+  E_PACKET_IN,
 } OFP_EVENT_TYPE;
 
 /*======================= external ==========================*/

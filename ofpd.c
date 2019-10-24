@@ -111,7 +111,10 @@ int main(int argc, char **argv)
 	ofpdInit();
 	
 	if (fork() == 0){
-   		ofp_sockd();
+   		ofp_sockd_cp();
+    }
+	if (fork() == 0){
+   		ofp_sockd_dp();
     }
     signal(SIGINT,OFP_bye);
     
