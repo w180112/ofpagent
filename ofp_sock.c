@@ -25,13 +25,45 @@ fd_set			ofp_io_ready;
  **************************************************************************/ 
 int OFP_SOCK_INIT() 
 {
-	struct sockaddr_in sock_info;
+	struct sockaddr_in sock_info, local_sock_info;
+	struct sock_fprog  	Filter;
+	/* Dst port of packet from RDMA node should be 6655 */
+	static struct sock_filter  BPF_code[] = {
+		{ 0x28, 0, 0, 0x0000000c },
+		{ 0x15, 0, 6, 0x000086dd },
+		{ 0x30, 0, 0, 0x00000014 },
+		{ 0x15, 2, 0, 0x00000084 },
+		{ 0x15, 1, 0, 0x00000006 },
+		{ 0x15, 0, 13, 0x00000011 },
+		{ 0x28, 0, 0, 0x00000038 },
+		{ 0x15, 10, 11, 0x000019ff },
+		{ 0x15, 0, 10, 0x00000800 },
+		{ 0x30, 0, 0, 0x00000017 },
+		{ 0x15, 2, 0, 0x00000084 },
+		{ 0x15, 1, 0, 0x00000006 },
+		{ 0x15, 0, 6, 0x00000011 },
+		{ 0x28, 0, 0, 0x00000014 },
+		{ 0x45, 4, 0, 0x00001fff },
+		{ 0xb1, 0, 0, 0x0000000e },
+		{ 0x48, 0, 0, 0x00000010 },
+		{ 0x15, 0, 1, 0x000019ff },
+		{ 0x6, 0, 0, 0x00000080 },
+		{ 0x6, 0, 0, 0x00000000 },
+	}; 
 	
-    if ((ofp_io_fds[0]=socket(AF_INET, SOCK_STREAM, 0)) < 0){
+	Filter.len = sizeof(BPF_code)/sizeof(struct sock_filter);
+	Filter.filter = BPF_code;
+
+    if ((ofp_io_fds[0]=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 	    printf("socket");
 	    return -1;
 	}
 	
+	if ((ofp_io_fds[1]=socket(PF_PACKET, SOCK_RAW, htons(0x0800))) < 0){
+	    printf("socket");
+	    return -1;
+	}
+
     FD_ZERO(&ofp_io_ready);
     FD_SET(ofp_io_fds[0],&ofp_io_ready);
     
@@ -40,11 +72,18 @@ int OFP_SOCK_INIT()
     sock_info.sin_addr.s_addr = inet_addr("192.168.10.171");
     sock_info.sin_port = htons(6653);
     
+	bzero(&local_sock_info, sizeof(local_sock_info));
+    local_sock_info.sin_family = PF_INET;
+    local_sock_info.sin_addr.s_addr = inet_addr("192.168.10.156");
+    local_sock_info.sin_port = htons(6654);
+
+	bind(ofp_io_fds[0],(struct sockaddr *)&local_sock_info,sizeof(local_sock_info));
+
     int err = connect(ofp_io_fds[0],(struct sockaddr *)&sock_info,sizeof(sock_info));
     if (err == -1) {
         printf("Connection error");
     }
-	
+
 	return 0;
 }
 
@@ -97,8 +136,8 @@ void ofp_sockd(void)
  **************************************************************/
 void drv_xmit(U8 *mu, U16 mulen)
 {
-	printf("drv_xmit ............\n");
-	PRINT_MESSAGE((char*)mu, mulen);
+	printf("\ndrv_xmit ............\n");
+	PRINT_MESSAGE((unsigned char*)mu, mulen);
 	send(ofp_io_fds[0], mu, mulen, 0);
 }
 

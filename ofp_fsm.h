@@ -38,6 +38,8 @@ typedef enum {
   E_ECHO_REPLY,
   E_OFP_TIMEOUT,
   E_OFP_CACHE_TIMEOUT,
+  E_PACKET_FROM_HOST,
+  E_PACKET_OUT,
 } OFP_EVENT_TYPE;
 
 /*======================= external ==========================*/

@@ -41,7 +41,7 @@ tOFP_STATE_TBL  ofp_fsm_tbl[] = {
 
 { S_ESTABLISHED,	E_OTHERS,    			S_ESTABLISHED,	{ 0 }},
 
-{ S_ESTABLISHED,	E_ECHO_REPLY,    		S_ESTABLISHED,	{ A_stop_query_tmr, A_clear_query_cnt, 0 }},
+{ S_ESTABLISHED,	E_ECHO_REPLY,    		S_ESTABLISHED,	{ A_stop_query_tmr, A_clear_query_cnt, A_start_timer, 0 }},
 
 { S_ESTABLISHED,	E_OFP_TIMEOUT,    		S_ESTABLISHED,	{ A_query_tmr_expire, A_send_echo_request, A_start_timer, 0 }},
 

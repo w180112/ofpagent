@@ -65,7 +65,7 @@ void ofpdInit(void)
 		return;
 	}
 	
-	ofp_interval = (U32)(3*SEC);
+	ofp_interval = (U32)(10*SEC);
 	tmrInit();
 	OFP_ipc_init();
     
@@ -130,22 +130,18 @@ int main(int argc, char **argv)
 		
 		switch(ipc_type){
 		case IPC_EV_TYPE_TMR:
-			if (ipc_type == IPC_EV_TYPE_TMR){
-				ipc_prim = (tIPC_PRIM*)mbuf.mtext;
-				ccb = ipc_prim->ccb;
-				event = ipc_prim->evt;
-				OFP_FSM(ccb, event);
-			}
+			ipc_prim = (tIPC_PRIM*)mbuf.mtext;
+			ccb = ipc_prim->ccb;
+			event = ipc_prim->evt;
+			OFP_FSM(ccb, event);
 			break;
 		
 		case IPC_EV_TYPE_DRV:
 			mail = (tOFP_MBX*)mbuf.mtext;
 			//ofp_ports[port].port = TEST_PORT_ID;
 			DBG_OFP(DBGLVL1,&ofp_ports[0],"<-- Rx ofp message\n");
-			if (OFP_decode_frame(mail, &ofp_ports[0]) == ERROR) {
-				//ofp_ports[port].err_imsg_cnt++;
+			if (OFP_decode_frame(mail, &ofp_ports[0]) == ERROR)
 				continue;
-			}
 			OFP_FSM(&ofp_ports[0], ofp_ports[0].event);
 			break;
 		
@@ -153,47 +149,5 @@ int main(int argc, char **argv)
 		default:
 		    ;
 		}
-		
-		/*
-		get_msgQ(ofpmsgQ, &mail);
-		
-		switch(mail.type){
-		case MT_ofp_peer:
-			port = mail.port;
-			if (port < 1 || port > MAX_USER_PORT_NUM)  continue;	
-			if (!ofp_ports[port].enable)  continue;
-			
-			if (OFP_decode_frame(&mail, &imsg) == ERROR){
-				ofp_ports[port].err_imsg_cnt++;
-				continue;
-			}
-			
-			event = mail.evt;
-			DBG_OFP(DBGLVL1,"[%d] <-- Rx ofp message\n",port);
-			OFP_FSM(&ofp_ports[port], event, &imsg);
-			break;
-			
-		case MT_ofp_crt:
-			port = mail.port;
-			event = mail.evt;
-			OFP_FSM(&ofp_ports[port], event, ofp_data);
-			break;
-			
-		case MT_ofp_tmr:
-			port = ((tOFP_PORT*)mail.ccb)->port;
-			if (port < 1 || port > MAX_USER_PORT_NUM)  continue;	
-			if (!ofp_ports[port].enable)  continue;
-			
-			event = mail.evt;
-			OFP_FSM(mail.ccb, event, ofp_data);
-			break;
-		
-		case MT_ofp_link:
-			OFP_FSM(&ofp_ports[mail.port], mail.evt, ofp_data);
-			break;
-			
-		default:
-			;
-		}*/
     }
 }

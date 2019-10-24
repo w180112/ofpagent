@@ -551,10 +551,3 @@ void close_sock(int fd)
 {
     close(fd);
 }
-
-void debug_print_buf(unsigned char *buffer)
-{
-    for(int i=0; i<MSG_BUF; i++)
-        printf("%x ", buffer[i]);
-    printf("\n");
-}
