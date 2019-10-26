@@ -33,11 +33,14 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 	mulen = mail->len;
 
 	if (((ofp_header_t *)mu)->version == 0) {
+		printf("----------------------------------\nrecv packet in\n");
 		port_ccb->event = E_PACKET_IN;
+		return TRUE;
 	}
     //PRINT_MESSAGE(mu,mulen);
 	switch(((ofp_header_t *)mu)->type) {
 	case OFPT_HELLO:
+		printf("----------------------------------\nrecv hello msg\n");
 		port_ccb->event = E_RECV_HELLO;
 		memcpy(&(port_ccb->ofp_header),mu,sizeof(ofp_header_t));
 		break;

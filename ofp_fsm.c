@@ -45,6 +45,8 @@ tOFP_STATE_TBL  ofp_fsm_tbl[] = {
 
 { S_ESTABLISHED,	E_OFP_TIMEOUT,    		S_ESTABLISHED,	{ A_query_tmr_expire, A_send_echo_request, A_start_timer, 0 }},
 
+{ S_ESTABLISHED,    E_PACKET_IN,            S_ESTABLISHED,  { 0 }},
+
 { S_INVALID, 0 }
 };
  

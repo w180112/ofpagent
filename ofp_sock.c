@@ -121,22 +121,23 @@ void ofp_sockd_dp(void)
 	int		n,rxlen;
 	U8 	    buffer[ETH_MTU];
 	struct sockaddr_in client;              
-	int addrlen = sizeof(client);
+	int addrlen = sizeof(client), client_fd;
 		
 	listen(ofp_io_fds[1],10);
-	accept(ofp_io_fds[1],(struct sockaddr *)&client, (socklen_t *)&addrlen);
-		
-    rxlen = recv(ofp_io_fds[1],(char*)buffer,1500,0);
-    if (rxlen <= 0){
-    	printf("Error! recv(): len <= 0\n");
-       	continue;
-	}
+	for(;;) {
+		client_fd = accept(ofp_io_fds[1],(struct sockaddr *)&client, (socklen_t *)&addrlen);
+    	rxlen = recv(client_fd,(char*)buffer,1500,0);
+    	if (rxlen <= 0) {
+    		printf("Error! recv(): len <= 0\n");
+       		continue;
+		}
     		
    			/*printf("=========================================================\n");
 			printf("rxlen=%d\n",rxlen);
     		PRINT_MESSAGE((char*)buffer, rxlen);*/
     		
-    ofp_send2mailbox((U8*)buffer, rxlen);
+    	ofp_send2mailbox((U8*)buffer, rxlen);
+	}
 }
 
 /**************************************************************
