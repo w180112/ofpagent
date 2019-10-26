@@ -1,7 +1,7 @@
 /*\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\
   OFP_CODEC.C :
 
-  Designed by Dennis Tseng on Dec 12, 2008
+  Designed by THE on SEP 16, 2019
 /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
 
 #include 		<common.h>
@@ -10,6 +10,8 @@
 #include        "ofp_fsm.h"
 #include        "ofp_dbg.h"
 #include 		"ofp_sock.h"
+
+void OFP_encode_packet_in(void);
 
 /*============================ DECODE ===============================*/
 
@@ -26,7 +28,7 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 	U8	*mu;
 	tOFP_MSG *msg;
 	
-	if (mail->len > ETH_MTU){
+	if (mail->len > ETH_MTU) {
 	    DBG_OFP(DBGLVL1,0,"error! too large frame(%d)\n",mail->len);
 	    return ERROR;
 	}
@@ -38,7 +40,7 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 
 
 	if (msg->type == DRIV_DP) {
-		printf("----------------------------------\nrecv packet in\n");
+		OFP_encode_packet_in();
 		port_ccb->event = E_PACKET_IN;
 		return TRUE;
 	}
@@ -83,7 +85,7 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 
 /*============================== ENCODING ===============================*/
 
-void OFP_encode_packet_in() {
+void OFP_encode_packet_in(void) {
 	printf("----------------------------------\nencode packet in\n");
 }
 #if 0

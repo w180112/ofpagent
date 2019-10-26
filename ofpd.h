@@ -3,7 +3,7 @@
 
      For ofp detection
 
-  Designed by Dennis Tseng on Apr 26, 2016
+  Designed by THE on SEP 26, 2019
 /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
 
 #include "ofp_common.h"
@@ -16,16 +16,8 @@
 #define	MAX_QUE_EVT_CNT			(MBOX_QUE_SIZE/2)
 #define _PBM(port)				(1<<(port-1))
 
-#define MAX_USER_PORT_NUM		44
+#define MAX_USER_PORT_NUM		10
 #define MAX_OFP_QUERY_NUM		10
-#define DEF_QUERY_INTERVAL		2
-#define	OFP_MAX_OPT_TLV_NUM	10
-#define	OFP_MAX_SUB_OPT_TLV_NUM 20
-
-#define FWD_STD_802_1Q			1
-#define FWD_REFLECTIVE_RELAY	1
-#define CAP_VSI_DISCOV_PROTO	1
-#define CAP_802_1X_AUTH_REQ		1
 
 typedef struct {
 	U8		subt;
@@ -66,13 +58,6 @@ typedef struct _EVB_CAP {
 		U8	rsvd: 5;
 	} cap;
 } EVB_CAP_t;
-		 
-typedef struct _OFP_EVB_TLV {
-	EVB_CAP_t	evb_cap;
-	EVB_CAP_t	evb_cur_config;
-	U16 		vsi_num_support;
-	U16 		vsi_num_config;
-} EVB_VSI_t;
 
 //========= The structure of port ===========
 typedef struct {
@@ -94,7 +79,6 @@ typedef struct {
 	
 	tSYS_CAP	sys_cap;
 	tMNG_ADDR  	mng_addr;
-	EVB_VSI_t	evb;
 
 	int 		sockfd;
 	U16			event;
@@ -102,8 +86,6 @@ typedef struct {
 	ofp_multipart_t ofp_multipart;
 } tOFP_PORT;
 
-extern BOOL			ofp_opt_tlvs[];
-extern BOOL			ofp_sub_opt_tlvs[];
 extern U8	 		g_loc_mac[]; //system mac addr -- global variable
 extern tOFP_PORT	ofp_ports[];
 extern tIPC_ID 		ofpQid;

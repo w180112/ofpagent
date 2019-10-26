@@ -14,7 +14,6 @@
 #include 			"ofp_sock.h" 
 
 BOOL				ofp_testEnable=FALSE;
-BOOL				ofp_opt_tlvs[OFP_MAX_OPT_TLV_NUM];
 U32					ofp_ttl;
 U32					ofp_interval;
 U16					ofp_init_delay;
@@ -82,12 +81,7 @@ void ofpdInit(void)
 		ofp_ports[i].err_imsg_cnt =
 		ofp_ports[i].omsg_cnt = 0;
 	}
-	ofp_ports[1].enable = TRUE;
 	
-	for(i=0; i<OFP_MAX_OPT_TLV_NUM; i++){
-		ofp_opt_tlvs[i] = FALSE;
-	}
-    
 	sleep(1);
 	ofp_max_msg_per_query = MAX_OFP_QUERY_NUM;
 	ofp_testEnable = TRUE; //to let driver ofp msg come in ...
