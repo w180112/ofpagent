@@ -13,6 +13,9 @@ extern "C" {
 #define CP_FD 0
 #define DP_FD 1
 
+#define DRIV_CP 0
+#define DRIV_DP 1
+
 extern void           drv_xmit(U8 *mu, U16 mulen, int fd_id);
 extern int 						OFP_SOCK_INIT();
 extern void 					ofp_sockd_cp();

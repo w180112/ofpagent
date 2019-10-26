@@ -9,6 +9,7 @@
 #include		"ofp_codec.h"
 #include        "ofp_fsm.h"
 #include        "ofp_dbg.h"
+#include 		"ofp_sock.h"
 
 /*============================ DECODE ===============================*/
 
@@ -23,16 +24,20 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 {
     U16	mulen;
 	U8	*mu;
+	tOFP_MSG *msg;
 	
 	if (mail->len > ETH_MTU){
 	    DBG_OFP(DBGLVL1,0,"error! too large frame(%d)\n",mail->len);
 	    return ERROR;
 	}
 
-	mu = mail->refp;
-	mulen = mail->len;
+	msg = (tOFP_MSG *)mail->refp;
+	port_ccb->sockfd = msg->sockfd;
+	mu = msg->buffer;
+	mulen = (mail->len) - (sizeof(int) + 1);
 
-	if (((ofp_header_t *)mu)->version == 0) {
+
+	if (msg->type == DRIV_DP) {
 		printf("----------------------------------\nrecv packet in\n");
 		port_ccb->event = E_PACKET_IN;
 		return TRUE;

@@ -1,5 +1,5 @@
-#ifndef _OPENFLOW_COMMON_H_
-#define _OPENFLOW_COMMON_H_
+#ifndef _OFP_COMMON_H_
+#define _OFP_COMMON_H_
 
 #include <stdint.h>
 

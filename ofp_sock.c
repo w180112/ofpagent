@@ -77,7 +77,8 @@ int OFP_SOCK_INIT()
 void ofp_sockd_cp(void)
 {
 	int		n,rxlen;
-	U8 	    buffer[ETH_MTU];
+	//U8 	    buffer[ETH_MTU];
+	tOFP_MSG msg;
 		
 	/* 
 	** to.tv_sec = 1;  ie. non-blocking; "select" will return immediately; =polling 
@@ -95,18 +96,19 @@ void ofp_sockd_cp(void)
    		/*----------------------------------------------------------------------
        	 * rx data from "LOC_sockAddr" to "LOC_fd" in Blocking mode
      	 *---------------------------------------------------------------------*/
-    	if (FD_ISSET(ofp_io_fds[0],&ofp_io_ready[0])){
-    		rxlen = recv(ofp_io_fds[0],(char*)buffer,1500,0);
+    	if (FD_ISSET(ofp_io_fds[0],&ofp_io_ready[0])) {
+    		rxlen = recv(ofp_io_fds[0],msg.buffer,1500,0);
     		if (rxlen <= 0){
       			printf("Error! recvfrom(): len <= 0\n");
        			continue;
     		}
-    		
+    		msg.sockfd = ofp_io_fds[0];
+			msg.type = DRIV_CP;
    			/*printf("=========================================================\n");
 			printf("rxlen=%d\n",rxlen);
     		PRINT_MESSAGE((char*)buffer, rxlen);*/
     		
-    		ofp_send2mailbox((U8*)buffer, rxlen);
+    		ofp_send2mailbox((U8*)&msg, rxlen+sizeof(int)+1);
    		} /* if select */
    	} /* for */
 }
@@ -119,24 +121,26 @@ void ofp_sockd_cp(void)
 void ofp_sockd_dp(void)
 {
 	int		n,rxlen;
-	U8 	    buffer[ETH_MTU];
+	//U8 	    buffer[ETH_MTU];
+	tOFP_MSG msg;
 	struct sockaddr_in client;              
 	int addrlen = sizeof(client), client_fd;
 		
 	listen(ofp_io_fds[1],10);
 	for(;;) {
 		client_fd = accept(ofp_io_fds[1],(struct sockaddr *)&client, (socklen_t *)&addrlen);
-    	rxlen = recv(client_fd,(char*)buffer,1500,0);
+    	rxlen = recv(client_fd,msg.buffer,ETH_MTU,0);
     	if (rxlen <= 0) {
     		printf("Error! recv(): len <= 0\n");
        		continue;
 		}
-    		
+    	msg.type = DRIV_DP;
+		msg.sockfd = client_fd;
    			/*printf("=========================================================\n");
 			printf("rxlen=%d\n",rxlen);
     		PRINT_MESSAGE((char*)buffer, rxlen);*/
     		
-    	ofp_send2mailbox((U8*)buffer, rxlen);
+    	ofp_send2mailbox((U8*)&msg, rxlen+sizeof(int)+1);
 	}
 }
 
@@ -145,11 +149,11 @@ void ofp_sockd_dp(void)
  *
  * - sid  : socket id
  **************************************************************/
-void drv_xmit(U8 *mu, U16 mulen, int fd_id)
+void drv_xmit(U8 *mu, U16 mulen, int sockfd)
 {
 	printf("\ndrv_xmit ............\n");
 	PRINT_MESSAGE((unsigned char*)mu, mulen);
-	send(ofp_io_fds[fd_id], mu, mulen, 0);
+	send(sockfd, mu, mulen, 0);
 }
 
 /*********************************************************

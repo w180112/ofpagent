@@ -85,8 +85,6 @@ typedef struct {
 	U32			omsg_cnt;
 	U32			err_imsg_cnt;	
 	
-	//tOFP_MSG 	imsg; //imsg.tlv[].vp still make use mailbox's data memory
-	
 	tSUB_VAL	port_id;
 		
 	U32			ttl;
@@ -98,6 +96,7 @@ typedef struct {
 	tMNG_ADDR  	mng_addr;
 	EVB_VSI_t	evb;
 
+	int 		sockfd;
 	U16			event;
 	ofp_header_t ofp_header;
 	ofp_multipart_t ofp_multipart;
@@ -111,8 +110,6 @@ extern tIPC_ID 		ofpQid;
 extern U32			ofp_interval;
 extern U8			ofp_max_msg_per_query;
 
-extern void 		OFP_save_imsg(/*tOFP_MSG *imsg*/);
-
 /*-----------------------------------------
  * Queue between IF driver and daemon
  *----------------------------------------*/
@@ -120,7 +117,16 @@ typedef struct {
 	U16  			type;
 	U8          	refp[ETH_MTU];
 	int	        	len;
-} tOFP_MBX;
+}tOFP_MBX;
+
+/*-----------------------------------------
+ * msg from dp
+ *----------------------------------------*/
+typedef struct {
+	U8  			type;
+	int 			sockfd;
+	char          	buffer[ETH_MTU];
+}tOFP_MSG;
 
 typedef enum {
 	/* Immutable messages. */
