@@ -120,7 +120,7 @@ void ofp_sockd_cp(void)
  **************************************************************************/
 void ofp_sockd_dp(void)
 {
-	int		n,rxlen;
+	int		rxlen;
 	//U8 	    buffer[ETH_MTU];
 	tOFP_MSG msg;
 	struct sockaddr_in client;              

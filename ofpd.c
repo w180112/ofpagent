@@ -24,6 +24,8 @@ tOFP_PORT			ofp_ports[MAX_USER_PORT_NUM+1]; //port is 1's based
 
 tIPC_ID 			ofpQid=-1;
 
+extern int			ofp_io_fds[10];
+
 /*---------------------------------------------------------
  * ofp_bye : signal handler for INTR-C only
  *--------------------------------------------------------*/
@@ -118,6 +120,7 @@ int main(int argc, char **argv)
     }
     signal(SIGINT,OFP_bye);
     
+	ofp_ports[0].sockfd = ofp_io_fds[0];
     OFP_FSM(&ofp_ports[0], E_START);
     
 	for(;;){

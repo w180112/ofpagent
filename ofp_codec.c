@@ -33,7 +33,7 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 
 	msg = (tOFP_MSG *)mail->refp;
 	port_ccb->sockfd = msg->sockfd;
-	mu = msg->buffer;
+	mu = (U8 *)(msg->buffer);
 	mulen = (mail->len) - (sizeof(int) + 1);
 
 

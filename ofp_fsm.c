@@ -16,6 +16,8 @@
 #include 		<ifaddrs.h>
 #include		<inttypes.h>
 
+extern int		ofp_io_fds[10];
+
 char 			*OFP_state2str(U16 state);
 
 static STATUS 	A_send_hello(tOFP_PORT*);
@@ -146,6 +148,8 @@ STATUS A_send_echo_request(tOFP_PORT *port_ccb)
 	ofp_header.length = htons(ofp_header.length);
 	ofp_header.xid = 0;
 
+	port_ccb->sockfd = ofp_io_fds[0];
+
 	memcpy(buffer, &ofp_header, length);
 	drv_xmit(buffer, length, port_ccb->sockfd);
 
@@ -171,7 +175,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
 	int fd;
     struct ifreq ifr;
 	uint64_t tmp;
-	char *eth_name = "ens8";
+	char *eth_name = "eth0";
 
 	if (getifaddrs(&ifaddr) == -1) {
     	perror("getifaddrs");
@@ -188,7 +192,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
         tmp = ifr.ifr_hwaddr.sa_data[i];
         ofp_switch_features.datapath_id += tmp << (i*8);
     }
-	printf("%"PRIu64"\n", ofp_switch_features.datapath_id);
+	//printf("%"PRIu64"\n", ofp_switch_features.datapath_id);
 	ofp_switch_features.datapath_id = bitswap64(ofp_switch_features.datapath_id);
 	ofp_switch_features.n_buffers = htonl(256);
 	ofp_switch_features.n_tables = 254;
