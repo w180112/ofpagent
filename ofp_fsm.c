@@ -13,6 +13,8 @@
 #include    	"ofp_sock.h"
 #include    	"ofp_fsm.h"
 #include		"ofp_dbg.h"
+#include 		"ofp_asyn.h"
+#include 		"ofp_ctrl2sw.h"
 #include 		<ifaddrs.h>
 #include		<inttypes.h>
 
@@ -28,6 +30,7 @@ static STATUS   A_start_timer(tOFP_PORT*);
 static STATUS   A_clear_query_cnt(tOFP_PORT*);
 static STATUS   A_stop_query_tmr(tOFP_PORT*);
 static STATUS   A_query_tmr_expire(tOFP_PORT*);
+static STATUS   A_send_packet_in(tOFP_PORT*);
 
 tOFP_STATE_TBL  ofp_fsm_tbl[] = { 
 /*//////////////////////////////////////////////////////////////////////////////////
@@ -47,7 +50,7 @@ tOFP_STATE_TBL  ofp_fsm_tbl[] = {
 
 { S_ESTABLISHED,	E_OFP_TIMEOUT,    		S_ESTABLISHED,	{ A_query_tmr_expire, A_send_echo_request, A_start_timer, 0 }},
 
-{ S_ESTABLISHED,    E_PACKET_IN,            S_ESTABLISHED,  { 0 }},
+{ S_ESTABLISHED,    E_PACKET_IN,            S_ESTABLISHED,  { A_send_packet_in, 0 }},
 
 { S_INVALID, 0 }
 };
@@ -306,6 +309,19 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	memcpy(buf, &ofp_multipart, sizeof(ofp_multipart_t));
 	drv_xmit(buf, length, port_ccb->sockfd);
 	freeifaddrs(ifaddr);
+	return TRUE;
+}
+
+/*********************************************************************
+ * A_check_up_port_cfg: 
+ *
+ *********************************************************************/
+STATUS A_send_packet_in(tOFP_PORT *port_ccb)	
+{
+
+	drv_xmit(port_ccb->ofpbuf, port_ccb->ofpbuf_len, port_ccb->sockfd);
+	printf("send packet_in message\n");
+
 	return TRUE;
 }
 

@@ -10,8 +10,11 @@
 #include        "ofp_fsm.h"
 #include        "ofp_dbg.h"
 #include 		"ofp_sock.h"
+#include 		"ofp_asyn.h"
+#include 		"ofp_ctrl2sw.h"
+#include 		"ofp_oxm.h"
 
-void OFP_encode_packet_in(void);
+void OFP_encode_packet_in(tOFP_PORT *port_ccb, U16 mulen);
 
 /*============================ DECODE ===============================*/
 
@@ -40,7 +43,7 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 
 
 	if (msg->type == DRIV_DP) {
-		OFP_encode_packet_in();
+		OFP_encode_packet_in(port_ccb, mu, mulen);
 		port_ccb->event = E_PACKET_IN;
 		return TRUE;
 	}
@@ -85,7 +88,37 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 
 /*============================== ENCODING ===============================*/
 
-void OFP_encode_packet_in(void) {
+void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 mu, U16 mulen) {
+	static buffer_id = 0;
+	uint16_t ofp_match_length = 0; 
+	uint32_t value = htonl(0x1);
+
+	port_ccb->ofp_packet_in.header.version = 0x04;
+	port_ccb->ofp_packet_in.header.type = OFPT_PACKET_IN;
+	uint16_t length = mulen + sizeof(ofp_packet_in_t) + 4 + 2;
+	port_ccb->ofp_packet_in.header.xid = 0x0;
+
+	port_ccb->ofp_packet_in.buffer_id = htonl(buffer_id);
+	port_ccb->ofp_packet_in.total_len = htons(mulen);
+	port_ccb->ofp_packet_in.reason = OFPR_NO_MATCH;
+	port_ccb->ofp_packet_in.table_id = 0;
+	port_ccb->ofp_packet_in.cookie = 0x00000000;
+
+	port_ccb->ofp_packet_in.ofp_match.type = htons(OFPMT_OXM);
+	port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_class = htonl(OFPXMC_OPENFLOW_BASIC);
+	port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_field = 0;
+	port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_hasmask = 0;
+	port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_length = sizeof(uint32_t);
+	// align to 16 bytes
+	ofp_match_length = sizeof(struct ofp_match) + port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_length + 4;
+	port_ccb->ofp_packet_in.ofp_match.length = htons(ofp_match_length);
+	port_ccb->ofp_packet_in.header.length = htons(length);
+
+	memset(port_ccb->ofpbuf,0,ETH_MTU);
+	memcpy(port_ccb->ofpbuf,&(port_ccb->ofp_packet_in),sizeof(ofp_packet_in_t));
+	memcpy(port_ccb->ofpbuf+sizeof(ofp_packet_in_t),&value,sizeof(uint32_t));
+	memcpy(port_ccb->ofpbuf+sizeof(ofp_packet_in_t)+sizeof(uint32_t)+6,mu,mulen);
+	port_ccb->ofpbuf_len = mulen;
 	printf("----------------------------------\nencode packet in\n");
 }
 #if 0

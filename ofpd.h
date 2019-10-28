@@ -7,6 +7,8 @@
 /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
 
 #include "ofp_common.h"
+#include "ofp_asyn.h"
+#include "ofp_ctrl2sw.h"
 
 #define OFP_Q_KEY				0x0b00
 #define ETH_MTU					1500
@@ -84,6 +86,9 @@ typedef struct {
 	U16			event;
 	ofp_header_t ofp_header;
 	ofp_multipart_t ofp_multipart;
+	ofp_packet_in_t ofp_packet_in;
+	U8 			ofpbuf[ETH_MTU];
+	uint16_t 	ofpbuf_len;
 } tOFP_PORT;
 
 extern U8	 		g_loc_mac[]; //system mac addr -- global variable
