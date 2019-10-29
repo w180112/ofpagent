@@ -26,14 +26,32 @@ fd_set			ofp_io_ready[2];
 int OFP_SOCK_INIT() 
 {
 	struct sockaddr_in sock_info[2], local_sock_info[2];
+	struct sock_fprog  	Filter;
+	static struct sock_filter  BPF_code[]={
+		{ 0x28, 0, 0, 0x0000000c },
+		{ 0x15, 0, 10, 0x00000800 },
+		{ 0x20, 0, 0, 0x0000001e },
+		{ 0x15, 0, 8, 0xc0a80a9c },
+		{ 0x30, 0, 0, 0x00000017 },
+		{ 0x15, 0, 6, 0x00000011 },
+		{ 0x28, 0, 0, 0x00000014 },
+		{ 0x45, 4, 0, 0x00001fff },
+		{ 0xb1, 0, 0, 0x0000000e },
+		{ 0x48, 0, 0, 0x00000010 },
+		{ 0x15, 0, 1, 0x000019ff },
+		{ 0x6, 0, 0, 0x00000800 },
+		{ 0x6, 0, 0, 0x00000000 },
+	};
 
     if ((ofp_io_fds[0]=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 	    printf("socket");
 	    return -1;
 	}
 	
-	if ((ofp_io_fds[1]=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-	    printf("socket");
+	Filter.len = sizeof(BPF_code)/sizeof(struct sock_filter);
+	Filter.filter = BPF_code;
+	if ((ofp_io_fds[1]=socket(PF_PACKET, SOCK_RAW, htons(0x0800))) < 0) {
+	    perror("raw socket");
 	    return -1;
 	}
 
@@ -53,18 +71,44 @@ int OFP_SOCK_INIT()
     local_sock_info[0].sin_addr.s_addr = inet_addr("192.168.10.156");
     local_sock_info[0].sin_port = htons(6654);
 
-	bzero(&local_sock_info[1], sizeof(local_sock_info[1]));
-    local_sock_info[1].sin_family = PF_INET;
-    local_sock_info[1].sin_addr.s_addr = inet_addr("192.168.10.156");
-    local_sock_info[1].sin_port = htons(6655);
+	/* Set the network card in promiscuous mode */
+  	strncpy(ethreq.ifr_name, "eth0", IFNAMSIZ);
+  	if (ioctl(ofp_io_fds[1], SIOCGIFFLAGS, &ethreq)==-1) {
+    	perror("ioctl (SIOCGIFCONF) 1\n");
+    	close(ofp_io_fds[1]);
+    	return -1;
+  	}
+  	
+  	ethreq.ifr_flags |= IFF_PROMISC;
+  	if (ioctl(ofp_io_fds[1], SIOCSIFFLAGS, &ethreq)==-1) {
+    	printf("ioctl (SIOCGIFCONF) 2\n");
+    	close(ofp_io_fds[1]);
+    	return -1;
+  	}
+  	
+  	/* Attach the filter to the socket */
+  	if (setsockopt(ofp_io_fds[1], SOL_SOCKET, SO_ATTACH_FILTER, &Filter, sizeof(Filter))<0){
+    	perror("setsockopt: SO_ATTACH_FILTER");
+    	close(ofp_io_fds[1]);
+    	return -1;
+  	}
 
 	bind(ofp_io_fds[0],(struct sockaddr *)&local_sock_info[0],sizeof(local_sock_info[0]));
-	bind(ofp_io_fds[1],(struct sockaddr *)&local_sock_info[1],sizeof(local_sock_info[1]));
-
     int err = connect(ofp_io_fds[0],(struct sockaddr *)&sock_info,sizeof(sock_info));
     if (err == -1) {
         printf("Connection error.");
     }
+
+	 //--------------- configure TX ------------------
+	memset(&sll, 0, sizeof(sll));
+	sll.sll_family = PF_PACKET;
+	sll.sll_protocol = htons(ETH_P_IP);
+	sll.sll_halen = 6;
+		
+	ioctl(ofp_io_fds[1], SIOCGIFINDEX, &ethreq); //ifr_name must be set to "eth?" ahead
+	sll.sll_ifindex = ethreq.ifr_ifindex;
+	
+	printf("ifindex=%d\n",sll.sll_ifindex);
 
 	return 0;
 }
@@ -120,27 +164,34 @@ void ofp_sockd_cp(void)
  **************************************************************************/
 void ofp_sockd_dp(void)
 {
-	int		rxlen;
+	int		n, rxlen;
 	//U8 	    buffer[ETH_MTU];
 	tOFP_MSG msg;
 	struct sockaddr_in client;              
 	int addrlen = sizeof(client), client_fd;
 		
-	listen(ofp_io_fds[1],10);
 	for(;;) {
-		client_fd = accept(ofp_io_fds[1],(struct sockaddr *)&client, (socklen_t *)&addrlen);
-    	rxlen = recv(client_fd,msg.buffer,ETH_MTU,0);
-    	if (rxlen <= 0) {
-    		printf("Error! recv(): len <= 0\n");
-       		continue;
-		}
-    	msg.type = DRIV_DP;
-		msg.sockfd = client_fd;
+		if ((n=select(ofp_io_fds[1]+1,&ofp_io_ready[1],(fd_set*)0,(fd_set*)0,NULL/*&to*/))<0){
+   		    /* if "to" = NULL, then "select" will block indefinite */
+   			printf("select error !!! Giveup this receiving.\n");
+   			sleep(2);
+   			continue;
+   		}
+		if (n == 0)  continue;
+		if (FD_ISSET(ofp_io_fds[1],&ofp_io_ready[1])){
+    		rxlen = recvfrom(ofp_io_fds[1],msg.buffer,ETH_MTU,0,NULL,NULL);
+    		if (rxlen <= 0){
+      			printf("Error! recvfrom(): len <= 0\n");
+       			continue;
+    		}
+    		msg.type = DRIV_DP;
+			msg.sockfd = ofp_io_fds[1];
    			/*printf("=========================================================\n");
 			printf("rxlen=%d\n",rxlen);
     		PRINT_MESSAGE((char*)buffer, rxlen);*/
     		
-    	ofp_send2mailbox((U8*)&msg, rxlen+sizeof(int)+1);
+    		ofp_send2mailbox((U8*)&msg, rxlen+sizeof(int)+1);
+   		} /* if select */
 	}
 }
 
