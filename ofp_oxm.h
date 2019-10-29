@@ -1,6 +1,6 @@
 
 #ifndef _OFP_OXM_H_
-#define _OFP_OXM_h_
+#define _OFP_OXM_H_
 
 enum ofp_oxm_class {
     OFPXMC_NXM_0 = 0x0000, /* Backward compatibility with NXM */
@@ -9,7 +9,7 @@ enum ofp_oxm_class {
     OFPXMC_EXPERIMENTER = 0xFFFF, /* Experimenter class */
 };
 
-struct ofp_oxm_header {
+typedef struct ofp_oxm_header {
     uint16_t oxm_class;
     union oxm_header {
 		uint16_t oxm_value;

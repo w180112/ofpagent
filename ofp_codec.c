@@ -14,7 +14,7 @@
 #include 		"ofp_ctrl2sw.h"
 #include 		"ofp_oxm.h"
 
-void OFP_encode_packet_in(tOFP_PORT *port_ccb, U16 mulen);
+void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen);
 
 /*============================ DECODE ===============================*/
 
@@ -88,8 +88,8 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 
 /*============================== ENCODING ===============================*/
 
-void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 mu, U16 mulen) {
-	static buffer_id = 0;
+void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
+	static int buffer_id = 0;
 	uint16_t ofp_match_length = 0; 
 	uint32_t value = htonl(0x1);
 
@@ -104,21 +104,22 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 mu, U16 mulen) {
 	port_ccb->ofp_packet_in.table_id = 0;
 	port_ccb->ofp_packet_in.cookie = 0x00000000;
 
-	port_ccb->ofp_packet_in.ofp_match.type = htons(OFPMT_OXM);
-	port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_class = htonl(OFPXMC_OPENFLOW_BASIC);
-	port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_field = 0;
-	port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_hasmask = 0;
-	port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_length = sizeof(uint32_t);
+	port_ccb->ofp_packet_in.match.type = htons(OFPMT_OXM);
+	port_ccb->ofp_packet_in.match.oxm_header.oxm_class = htons(OFPXMC_OPENFLOW_BASIC);
+	port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_struct.oxm_field = 0;
+	port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_struct.oxm_hasmask = 0;
+	port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_struct.oxm_length = sizeof(uint32_t);
 	// align to 16 bytes
-	ofp_match_length = sizeof(struct ofp_match) + port_ccb->ofp_packet_in.ofp_match.oxm_header.oxm_length + 4;
-	port_ccb->ofp_packet_in.ofp_match.length = htons(ofp_match_length);
+	ofp_match_length = sizeof(struct ofp_match) + port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_struct.oxm_length;
+	port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_value = htons(port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_value);
+	port_ccb->ofp_packet_in.match.length = htons(ofp_match_length);
 	port_ccb->ofp_packet_in.header.length = htons(length);
 
 	memset(port_ccb->ofpbuf,0,ETH_MTU);
 	memcpy(port_ccb->ofpbuf,&(port_ccb->ofp_packet_in),sizeof(ofp_packet_in_t));
 	memcpy(port_ccb->ofpbuf+sizeof(ofp_packet_in_t),&value,sizeof(uint32_t));
 	memcpy(port_ccb->ofpbuf+sizeof(ofp_packet_in_t)+sizeof(uint32_t)+6,mu,mulen);
-	port_ccb->ofpbuf_len = mulen;
+	port_ccb->ofpbuf_len = mulen + sizeof(ofp_packet_in_t) + 2 + 4 + sizeof(uint32_t);
 	printf("----------------------------------\nencode packet in\n");
 }
 #if 0

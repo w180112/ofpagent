@@ -319,7 +319,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 STATUS A_send_packet_in(tOFP_PORT *port_ccb)	
 {
 
-	drv_xmit(port_ccb->ofpbuf, port_ccb->ofpbuf_len, port_ccb->sockfd);
+	drv_xmit(port_ccb->ofpbuf, port_ccb->ofpbuf_len, ofp_io_fds[0]);
 	printf("send packet_in message\n");
 
 	return TRUE;

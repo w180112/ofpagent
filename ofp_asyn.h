@@ -3,7 +3,7 @@
 
 #include "ofp_common.h"
 
-struct ofp_packet_in {
+typedef struct ofp_packet_in {
     struct ofp_header header;
     uint32_t buffer_id; /* ID assigned by datapath. */
     uint16_t total_len; /* Full length of frame. */

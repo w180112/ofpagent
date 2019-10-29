@@ -78,7 +78,7 @@ enum ofp_packet_in_reason {
     OFPR_NO_MATCH = 0, /* No matching flow (table-miss flow entry). */
     OFPR_ACTION = 1, /* Action explicitly output to controller. */
     OFPR_INVALID_TTL = 2, /* Packet has invalid TTL */
-}
+};
 
 /* Fields to match against flows */ 
 struct ofp_match {

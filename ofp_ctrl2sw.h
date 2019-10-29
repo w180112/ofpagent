@@ -13,7 +13,7 @@ typedef struct ofp_multipart {
 OFP_ASSERT(sizeof(struct ofp_multipart) == 16);
 
 /* Send packet (controller -> datapath). */ 
-struct ofp_packet_out {
+typedef struct ofp_packet_out {
     struct ofp_header header; 
     uint32_t buffer_id; /* ID assigned by datapath (OFP_NO_BUFFER if none). */
     uint32_t in_port; /* Packet's input port or OFPP_CONTROLLER. */
