@@ -36,7 +36,7 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 	    return ERROR;
 	}
 
-	msg = (tOFP_MSG *)mail->refp;
+	msg = (tOFP_MSG *)(mail->refp);
 	port_ccb->sockfd = msg->sockfd;
 	mu = (U8 *)(msg->buffer);
 	mulen = (mail->len) - (sizeof(int) + 1);
@@ -99,6 +99,7 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 	port_ccb->ofp_packet_in.header.xid = 0x0;
 
 	port_ccb->ofp_packet_in.buffer_id = htonl(buffer_id);
+	buffer_id++;
 	port_ccb->ofp_packet_in.total_len = htons(mulen);
 	port_ccb->ofp_packet_in.reason = OFPR_NO_MATCH;
 	port_ccb->ofp_packet_in.table_id = 0;

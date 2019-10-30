@@ -178,7 +178,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
 	int fd;
     struct ifreq ifr;
 	uint64_t tmp;
-	char *eth_name = "eth0";
+	char *eth_name = IF_NAME;
 
 	if (getifaddrs(&ifaddr) == -1) {
     	perror("getifaddrs");
@@ -286,6 +286,23 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	ofp_multipart.ofp_header.length = sizeof(ofp_multipart_t);
 
 	memset(&ofp_port_desc,0,sizeof(struct ofp_port));
+
+#if 1
+	ofp_port_desc.port_no = 1;
+	strcpy(ofp_port_desc.name,IF_NAME);
+	int fd;
+    struct ifreq ifr;
+ 
+    fd = socket(AF_INET, SOCK_DGRAM, 0);
+ 	ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name,IF_NAME,IFNAMSIZ-1);
+ 	ioctl(fd,SIOCGIFHWADDR,&ifr);
+    close(fd);
+    memcpy(ofp_port_desc.hw_addr,(unsigned char *)ifr.ifr_hwaddr.sa_data,OFP_ETH_ALEN);
+	memcpy(buf+buf_ptr,&ofp_port_desc,sizeof(struct ofp_port));
+	buf_ptr += sizeof(struct ofp_port);
+	ofp_multipart.ofp_header.length += sizeof(struct ofp_port);
+#elif
 	for(i=0,ifa=ifaddr; ifa != NULL; i++, ifa=ifa->ifa_next) {
 		if (((uintptr_t)(ifa->ifa_addr) & 0x00000000ffffffff) == 0 || ifa->ifa_addr->sa_family != AF_PACKET) 
 			continue;
@@ -304,6 +321,8 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 		buf_ptr += sizeof(struct ofp_port);
 		ofp_multipart.ofp_header.length += sizeof(struct ofp_port);
 	}
+#endif
+
 	uint16_t length = ofp_multipart.ofp_header.length;
 	ofp_multipart.ofp_header.length = htons(ofp_multipart.ofp_header.length);
 	memcpy(buf, &ofp_multipart, sizeof(ofp_multipart_t));
@@ -318,7 +337,6 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
  *********************************************************************/
 STATUS A_send_packet_in(tOFP_PORT *port_ccb)	
 {
-
 	drv_xmit(port_ccb->ofpbuf, port_ccb->ofpbuf_len, ofp_io_fds[0]);
 	printf("send packet_in message\n");
 

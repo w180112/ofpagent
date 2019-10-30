@@ -12,6 +12,7 @@
 #include		"ofpd.h"
 
 struct ifreq	ethreq;
+static struct   sockaddr_ll 	sll; 
 int				ofpSockSize = sizeof(struct sockaddr_in);
 int				ofp_io_fds[10];
 fd_set			ofp_io_ready[2];
@@ -72,7 +73,7 @@ int OFP_SOCK_INIT()
     local_sock_info[0].sin_port = htons(6654);
 
 	/* Set the network card in promiscuous mode */
-  	strncpy(ethreq.ifr_name, "eth0", IFNAMSIZ);
+  	strncpy(ethreq.ifr_name, IF_NAME, IFNAMSIZ);
   	if (ioctl(ofp_io_fds[1], SIOCGIFFLAGS, &ethreq)==-1) {
     	perror("ioctl (SIOCGIFCONF) 1\n");
     	close(ofp_io_fds[1]);
@@ -129,7 +130,7 @@ void ofp_sockd_cp(void)
     ** to.tv_usec = 0; ie. blocking
     */
 	for(;;) {    
-		if ((n=select(ofp_io_fds[0]+1,&ofp_io_ready[0],(fd_set*)0,(fd_set*)0,NULL/*&to*/)) < 0){
+		if ((n = select(ofp_io_fds[0]+1,&ofp_io_ready[0],(fd_set*)0,(fd_set*)0,NULL/*&to*/)) < 0){
    		    /* if "to" = NULL, then "select" will block indefinite */
    			printf("select error !!! Giveup this receiving.\n");
    			sleep(2);
@@ -141,9 +142,9 @@ void ofp_sockd_cp(void)
        	 * rx data from "LOC_sockAddr" to "LOC_fd" in Blocking mode
      	 *---------------------------------------------------------------------*/
     	if (FD_ISSET(ofp_io_fds[0],&ofp_io_ready[0])) {
-    		rxlen = recv(ofp_io_fds[0],msg.buffer,1500,0);
-    		if (rxlen <= 0){
-      			printf("Error! recvfrom(): len <= 0\n");
+    		rxlen = recv(ofp_io_fds[0],msg.buffer,ETH_MTU,0);
+    		if (rxlen <= 0) {
+      			printf("Error! recv(): len <= 0 at CP\n");
        			continue;
     		}
     		msg.sockfd = ofp_io_fds[0];
@@ -168,20 +169,20 @@ void ofp_sockd_dp(void)
 	//U8 	    buffer[ETH_MTU];
 	tOFP_MSG msg;
 	struct sockaddr_in client;              
-	int addrlen = sizeof(client), client_fd;
+	//int addrlen = sizeof(client), client_fd;
 		
 	for(;;) {
-		if ((n=select(ofp_io_fds[1]+1,&ofp_io_ready[1],(fd_set*)0,(fd_set*)0,NULL/*&to*/))<0){
+		if ((n = select(ofp_io_fds[1]+1,&ofp_io_ready[1],(fd_set*)0,(fd_set*)0,NULL/*&to*/)) < 0) {
    		    /* if "to" = NULL, then "select" will block indefinite */
    			printf("select error !!! Giveup this receiving.\n");
    			sleep(2);
    			continue;
    		}
 		if (n == 0)  continue;
-		if (FD_ISSET(ofp_io_fds[1],&ofp_io_ready[1])){
+		if (FD_ISSET(ofp_io_fds[1],&ofp_io_ready[1])) {
     		rxlen = recvfrom(ofp_io_fds[1],msg.buffer,ETH_MTU,0,NULL,NULL);
     		if (rxlen <= 0){
-      			printf("Error! recvfrom(): len <= 0\n");
+      			printf("Error! recvfrom(): len <= 0 at DP\n");
        			continue;
     		}
     		msg.type = DRIV_DP;
@@ -223,13 +224,13 @@ STATUS ofp_send2mailbox(U8 *mu, int mulen)
 {
 	tOFP_MBX mail;
 
-    if (ofpQid == -1){
-		if ((ofpQid=msgget(OFP_Q_KEY,0600|IPC_CREAT)) < 0){
+    if (ofpQid == -1) {
+		if ((ofpQid=msgget(OFP_Q_KEY,0600|IPC_CREAT)) < 0) {
 			printf("send> Oops! ofpQ(key=0x%x) not found\n",OFP_Q_KEY);
    	 	}
 	}
 	
-	if (mulen > ETH_MTU){
+	if (mulen > ETH_MTU) {
 	 	printf("Incoming frame length(%d) is too lmaile!\n",mulen);
 		return ERROR;
 	}
