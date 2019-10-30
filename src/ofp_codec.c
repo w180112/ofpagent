@@ -91,11 +91,11 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 	static int buffer_id = 0;
 	uint16_t ofp_match_length = 0; 
-	uint32_t value = htonl(0x1);
+	uint32_t port_no = htonl(0x1);
 
 	port_ccb->ofp_packet_in.header.version = 0x04;
 	port_ccb->ofp_packet_in.header.type = OFPT_PACKET_IN;
-	uint16_t length = mulen + sizeof(ofp_packet_in_t) + 4 + 2;
+	uint16_t length = mulen + sizeof(ofp_packet_in_t) + 4/*pad*/ + 2/*pad*/ + sizeof(uint32_t);/*port no.*/
 	port_ccb->ofp_packet_in.header.xid = 0x0;
 
 	port_ccb->ofp_packet_in.buffer_id = htonl(buffer_id);
@@ -118,7 +118,7 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 
 	memset(port_ccb->ofpbuf,0,ETH_MTU);
 	memcpy(port_ccb->ofpbuf,&(port_ccb->ofp_packet_in),sizeof(ofp_packet_in_t));
-	memcpy(port_ccb->ofpbuf+sizeof(ofp_packet_in_t),&value,sizeof(uint32_t));
+	memcpy(port_ccb->ofpbuf+sizeof(ofp_packet_in_t),&port_no,sizeof(uint32_t));
 	memcpy(port_ccb->ofpbuf+sizeof(ofp_packet_in_t)+sizeof(uint32_t)+6,mu,mulen);
 	port_ccb->ofpbuf_len = mulen + sizeof(ofp_packet_in_t) + 2 + 4 + sizeof(uint32_t);
 	printf("----------------------------------\nencode packet in\n");

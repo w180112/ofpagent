@@ -288,7 +288,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	memset(&ofp_port_desc,0,sizeof(struct ofp_port));
 
 #if 1
-	ofp_port_desc.port_no = 1;
+	ofp_port_desc.port_no = htonl(1);
 	strcpy(ofp_port_desc.name,IF_NAME);
 	int fd;
     struct ifreq ifr;
@@ -299,14 +299,14 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
  	ioctl(fd,SIOCGIFHWADDR,&ifr);
     close(fd);
     memcpy(ofp_port_desc.hw_addr,(unsigned char *)ifr.ifr_hwaddr.sa_data,OFP_ETH_ALEN);
-	memcpy(buf+buf_ptr,&ofp_port_desc,sizeof(struct ofp_port));
+	memcpy((U8 *)buf_ptr,&ofp_port_desc,sizeof(struct ofp_port));
 	buf_ptr += sizeof(struct ofp_port);
 	ofp_multipart.ofp_header.length += sizeof(struct ofp_port);
-#elif
+#else
 	for(i=0,ifa=ifaddr; ifa != NULL; i++, ifa=ifa->ifa_next) {
 		if (((uintptr_t)(ifa->ifa_addr) & 0x00000000ffffffff) == 0 || ifa->ifa_addr->sa_family != AF_PACKET) 
 			continue;
-		ofp_port_desc.port_no = i;
+		ofp_port_desc.port_no = htonl(i);
 		strcpy(ofp_port_desc.name,ifa->ifa_name);
 		int fd;
     	struct ifreq ifr;
