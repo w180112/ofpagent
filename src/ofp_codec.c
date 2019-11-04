@@ -15,6 +15,11 @@
 #include 		"ofp_oxm.h"
 
 void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen);
+void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen);
+STATUS insert_node(host_learn_t *head, host_learn_t *node);
+host_learn_t *find_node(host_learn_t *head, uint32_t buffer_id);
+STATUS ip_hdr_init(tIP_PKT *ip_hdr, uint32_t src_ip, uint32_t dst_ip);
+STATUS udp_hdr_init(tUDP_PKT *udp_hdr, uint32_t *host_src_ip, uint32_t *host_dst_ip);
 
 /*============================ DECODE ===============================*/
 
@@ -123,35 +128,101 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 	port_ccb->ofpbuf_len = mulen + sizeof(ofp_packet_in_t) + 2 + 4 + sizeof(uint32_t);
 	printf("----------------------------------\nencode packet in\n");
 
-	
-	
-	uint16_t host_learn_index = buffer_id / 1024;
-	uint16_t shift;
-	for(shift=0; host_learn[host_learn_index].is_full==FALSE; host_learn_index++,shift++);
-	host_learn[host_learn_index].src_ip = *((uint32_t *)(mu + ETH_HDR_LEN + ETH_TYPE_LEN + 12/* IP header except IP */));
-	host_learn[host_learn_index].dst_ip = *((uint32_t *)(mu + ETH_HDR_LEN + ETH_TYPE_LEN + 12/* IP header except IP */ + IP_ADDR_LEN));
-	memcpy(host_learn[host_learn_index].dst_mac,mu,MAC_ADDR_LEN);
-	memcpy(host_learn[host_learn_index].src_mac,mu+MAC_ADDR_LEN,MAC_ADDR_LEN);
-	host_learn[host_learn_index].is_full = TRUE;
-	host_learn[host_learn_index].shift = shift;
+	// use linked list instead
+	host_learn_t *node = malloc(sizeof(host_learn_t));
+	memcpy(node->dst_mac,mu,MAC_ADDR_LEN);
+	memcpy(node->src_mac,mu+MAC_ADDR_LEN,MAC_ADDR_LEN);
+	node->src_ip = *((uint32_t *)(mu + ETH_HDR_LEN + ETH_TYPE_LEN + 12/* IP header except IP */));
+	node->dst_ip = *((uint32_t *)(mu + ETH_HDR_LEN + ETH_TYPE_LEN + 12/* IP header except IP */ + IP_ADDR_LEN));
+	node->buffer_id = buffer_id;
+	node->next = NULL;
+	insert_node(port_ccb->head,node);
 }
 
-void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
+void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) 
+{
+	uint32_t buffer_id = htonl((ofp_flow_mod_t *)mu->buffer_id); 
 	uint32_t dst_ip, src_ip = *((uint32_t *)(mu + sizeof(ofp_flow_mod_t)));
-	ofp_action_set_field_t *ofp_action_set_field = (ofp_action_set_field_t *)(mu + sizeof(ofp_flow_mod_t)) + sizeof(src_ip) + sizeof(4)/* padding */ + sizeof(ofp_instruction_actions_t));
+	ofp_action_set_field_t *ofp_action_set_field = (ofp_action_set_field_t *)(mu + sizeof(ofp_flow_mod_t) + sizeof(src_ip) + sizeof(4)/* padding */ + sizeof(ofp_instruction_actions_t));
 	ofp_oxm_header_t *ofp_oxm_header = (ofp_oxm_header_t *)(ofp_action_set_field->pad);
+	tIP_PKT ip_hdr;
+	tUDP_PKT udp_hdr;
 
-
+	ofp_oxm_header->oxm_union.oxm_value = htons(ofp_oxm_header->oxm_union.oxm_value);
 	if (ofp_oxm_header->oxm_union.oxm_struct.oxm_field == OFPXMT_OFB_IPV4_DST)
-		dst_ip = *((uint32_t *)(mu + sizeof(ofp_flow_mod_t)) + sizeof(src_ip) + sizeof(4)/* padding */ + sizeof(ofp_instruction_actions_t) + sizeof(ofp_action_set_field_t)));
+		dst_ip = *((uint32_t *)(mu + sizeof(ofp_flow_mod_t) + sizeof(src_ip) + sizeof(4)/* padding */ + sizeof(ofp_instruction_actions_t) + sizeof(ofp_action_set_field_t)));
 	printf("src ip = %x, dst ip = %x\n", src_ip, dst_ip);
 
-	//host_learn[host_learn_index].shift
-	memcpy(port_ccb->ofpbuf,&src_ip,sizeof(uint32_t));
-	port_ccb->ofpbuf_len = sizeof(uint32_t);
-	memcpy(port_ccb->ofpbuf+sizeof(uint32_t),&dst_ip,sizeof(uint32_t));
-	port_ccb->ofpbuf_len += sizeof(uint32_t);
+	host_learn_t *node = find_node(port_ccb->head,buffer_id);
+
+	memcpy(port_ccb->ofpbuf,node->dst_mac,MAC_ADDR_LEN);
+	memcpy(port_ccb->ofpbuf+MAC_ADDR_LEN,node->src_mac,MAC_ADDR_LEN);
+	*((uint16_t *)(port_ccb->ofpbuf+MAC_ADDR_LEN*2)) = htons(FRAME_TYPE_IP);
+	port_ccb->ofpbuf_len = 14;
+
+	ip_hdr_init(&ip_hdr,node->src_ip,node->dst_ip);
+	U8 *tmp = ENCODE_IP_PKT(&ip_hdr,(port_ccb->ofpbuf)+MAC_ADDR_LEN*2+2);
+	port_ccb->ofpbuf_len += 20;
+
+	udp_hdr_init(&udp_hdr,&src_ip,&dst_ip);
+	tmp = ENCODE_UDP_PKT(&ip_hdr,&udp_hdr,tmp);
+	port_ccb->ofpbuf_len += UDP_HDR_LEN;
+
+	port_ccb->ofpbuf_len += IP_ADDR_LEN*2;
+	free(node);
 }
+
+STATUS insert_node(host_learn_t *head, host_learn_t *node)
+{
+	if (port_ccb->head == NULL) {
+		port_ccb->head = node;
+	}
+	for(host_learn_t *cur=port_ccb->head; cur->next!=NULL; cur=cur->next);
+	cur->next = node;
+	return TRUE;
+}
+
+host_learn_t *find_node(host_learn_t *head, uint32_t buffer_id)
+{
+	host_learn_t *prev = NULL, *cur = head;
+	for(;;prev=cur, cur=cur->next) {
+		if (cur == NULL)
+			return NULL;
+		if (cur->buffer_id == buffer_id) {
+			if (prev != NULL)
+				prev->next = cur->next;
+			return cur; 
+		}
+	}
+}
+
+STATUS ip_hdr_init(tIP_PKT *ip_hdr, uint32_t src_ip, uint32_t dst_ip)
+{
+	ip_hdr->ver_ihl.ver = 4;
+	ip_hdr->ver_ihl.IHL = 5;
+	ip_hdr->tos = 0;
+	ip_hdr->total_len = 36;
+	ip_hdr->id = 0;
+	ip_hdr->flag_frag.flag = 2
+	ip_hdr->flag_frag.frag_off = 0;
+	ip_hdr->ttl = 64;
+	ip_hdr->proto = PROTO_TYPE_UDP;
+	memcpy(ip_hdr->cSA,src_ip,IP_ADDR_LEN);
+	memcpy(ip_hdr->cDA,dst_ip,IP_ADDR_LEN);
+
+	return TRUE;
+}
+
+STATUS udp_hdr_init(tUDP_PKT *udp_hdr, uint32_t *host_src_ip, uint32_t *host_dst_ip)
+{
+	udp_hdr->src = 6655;
+	udp_hdr->dst = 8000;
+	udp_hdr->len = 16;
+	udp_hdr->data = host_src_ip;
+	udp_hdr->data + sizeof(uint32_t) = host_dst_ip;
+	return TRUE;
+}
+
 #if 0
 /*************************************************************************
  * OFP_encode_frame

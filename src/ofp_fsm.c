@@ -352,7 +352,7 @@ STATUS A_send_packet_in(tOFP_PORT *port_ccb)
  *********************************************************************/
 STATUS A_send_to_host(tOFP_PORT *port_ccb)	
 {
-	//drv_xmit(port_ccb->ofpbuf, port_ccb->ofpbuf_len, ofp_io_fds[1]);
+	drv_xmit(port_ccb->ofpbuf, port_ccb->ofpbuf_len, ofp_io_fds[1]);
 	printf("send back to host\n");
 
 	return TRUE;

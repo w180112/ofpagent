@@ -48,20 +48,15 @@ typedef struct {
 	U32		oids[128];
 } tMNG_ADDR;
 
-//========= The structure of EVB TLV ===========
-typedef struct _EVB_CAP {
-	struct _FWD_MODE { /*_LIT_ENDIAN */  
-		U8	rsvd: 6;
-		U8	rr  : 1;
-		U8	std : 1;
-	} fwd_mode;
-	
-	struct _CAP {
-		U8	vsi_discov : 1;
-		U8	auth: 2;
-		U8	rsvd: 5;
-	} cap;
-} EVB_CAP_t;
+typedef struct host_learn {
+	unsigned char src_mac[MAC_ADDR_LEN];
+	unsigned char dst_mac[MAC_ADDR_LEN];
+	uint32_t src_ip;
+	uint32_t dst_ip;
+	uint16_t src_port;
+	uint32_t buffer_id;
+	struct host_learn *next;
+}host_learn_t;
 
 //========= The structure of port ===========
 typedef struct {
@@ -91,6 +86,7 @@ typedef struct {
 	ofp_packet_in_t ofp_packet_in;
 	U8 			ofpbuf[ETH_MTU];
 	uint16_t 	ofpbuf_len;
+	host_learn_t *head;
 } tOFP_PORT;
 
 extern U8	 		g_loc_mac[]; //system mac addr -- global variable
@@ -159,14 +155,3 @@ typedef enum {
 	/* Meters and rate limiters configuration messages. */
 	OFPT_METER_MOD,
 }OFPT_t;
-
-typedef struct host_learn {
-	unsigned char src_mac[MAC_ADDR_LEN];
-	unsigned char dst_mac[MAC_ADDR_LEN];
-	uint32_t src_ip;
-	uint32_t dst_ip;
-	uint16_t src_port;
-	uint16_t shift;
-	BOOL is_full;
-}host_learn_t;
-host_learn_t host_learn[1024];

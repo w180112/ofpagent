@@ -102,6 +102,16 @@ typedef struct ofp_action_set_field {
                     including any padding to make it 64-bit aligned. */
     uint8_t pad[4]; /* OXM TLV - Make compiler happy */
 }ofp_action_set_field_t;
+OFP_ASSERT(sizeof(struct ofp_action_set_field) == 8);
+
+/* Action structure for OFPAT_*. */
+typedef struct ofp_action_header {
+    uint16_t type; /* OFPAT_*. */
+    uint16_t len; /* Length of action, including this
+                    header. This is the length of action, 
+                    including any padding to make it 64-bit aligned. */
+    uint8_t pad[4];
+}ofp_action_header_t;
 OFP_ASSERT(sizeof(struct ofp_action_header) == 8);
 
 enum ofp_action_type { 
