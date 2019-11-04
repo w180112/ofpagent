@@ -94,16 +94,14 @@ struct ofp_match {
 };
 OFP_ASSERT(sizeof(struct ofp_match) == 8);
 
-/* Action header that is common to all actions. The length includes the
- * header and any padding used to make the action 64-bit aligned.
- * NB: The length of an action *must* always be a multiple of eight. */
-struct ofp_action_header { 
-    uint16_t type; /* One of OFPAT_*. */
+/* Action structure for OFPAT_SET_FIELD. */
+typedef struct ofp_action_set_field {
+    uint16_t type; /* OFPAT_SET_FIELD. */
     uint16_t len; /* Length of action, including this
                     header. This is the length of action, 
                     including any padding to make it 64-bit aligned. */
-    uint8_t pad[4]; 
-};
+    uint8_t pad[4]; /* OXM TLV - Make compiler happy */
+}ofp_action_set_field_t;
 OFP_ASSERT(sizeof(struct ofp_action_header) == 8);
 
 enum ofp_action_type { 
@@ -126,15 +124,6 @@ enum ofp_action_type {
     OFPAT_EXPERIMENTER = 0xffff
 };
 
-struct ofp_action_output { 
-    uint16_t type; /* OFPAT_OUTPUT. */
-    uint16_t len; /* Length is 16. */
-    uint32_t port; /* Output port. */
-    uint16_t max_len; /* Max length to send to controller. */
-    uint8_t pad[6]; /* Pad to 64 bits. */
-};
-OFP_ASSERT(sizeof(struct ofp_action_output) == 16);
-
 /* The match type indicates the match structure (set of fields that compose the * match) in use. The match type is placed in the type field at the beginning
 * of all match structures. The "OpenFlow Extensible Match" type corresponds
 * to OXM TLV format described below and must be supported by all OpenFlow
@@ -143,6 +132,39 @@ OFP_ASSERT(sizeof(struct ofp_action_output) == 16);
 enum ofp_match_type {
     OFPMT_STANDARD = 0, /* Deprecated. */
     OFPMT_OXM = 1, /* OpenFlow Extensible Match */
+};
+
+
+/* Action structure for OFPAT_OUTPUT, which sends packets out ’port’. * When the ’port’ is the OFPP_CONTROLLER, ’max_len’ indicates the max * number of bytes to send. A ’max_len’ of zero means no bytes of the * packet should be sent. A ’max_len’ of OFPCML_NO_BUFFER means that
+* the packet is not buffered and the complete packet is to be sent to * the controller. */
+typedef struct ofp_action_output { 
+    uint16_t type; /* OFPAT_OUTPUT. */
+    uint16_t len; /* Length is 16. */
+    uint32_t port; /* Output port. */
+    uint16_t max_len; /* Max length to send to controller. */
+    uint8_t pad[6]; /* Pad to 64 bits. */
+}ofp_action_output_t;
+OFP_ASSERT(sizeof(struct ofp_action_output) == 16);
+
+/* Instruction structure for OFPIT_WRITE/APPLY/CLEAR_ACTIONS */
+typedef struct ofp_instruction_actions {
+    uint16_t type; /* One of OFPIT_*_ACTIONS */
+    uint16_t len; /* Length of this struct in bytes. */
+    uint8_t pad[4]; /* Align to 64-bits */
+    struct ofp_action_header actions[0]; /* Actions associated with 
+                                            OFPIT_WRITE_ACTIONS and 
+                                            OFPIT_APPLY_ACTIONS */
+}ofp_instruction_actions_t;
+OFP_ASSERT(sizeof(struct ofp_instruction_actions) == 8);
+
+enum ofp_instruction_type { 
+    OFPIT_GOTO_TABLE = 1, /* Setup the next table in the lookup pipeline */ 
+    OFPIT_WRITE_METADATA = 2, /* Setup the metadata field for use later in pipeline */ 
+    OFPIT_WRITE_ACTIONS = 3, /* Write the action(s) onto the datapath action set */
+    OFPIT_APPLY_ACTIONS = 4, /* Applies the action(s) immediately */
+    OFPIT_CLEAR_ACTIONS = 5, /* Clears all actions from the datapath action set */
+    OFPIT_METER = 6, /* Apply meter (rate limiter) */
+    OFPIT_EXPERIMENTER = 0xFFFF /* Experimenter instruction */ 
 };
 
 #endif

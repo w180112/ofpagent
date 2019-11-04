@@ -31,6 +31,7 @@ static STATUS   A_clear_query_cnt(tOFP_PORT*);
 static STATUS   A_stop_query_tmr(tOFP_PORT*);
 static STATUS   A_query_tmr_expire(tOFP_PORT*);
 static STATUS   A_send_packet_in(tOFP_PORT*);
+static STATUS   A_send_to_host(tOFP_PORT*);
 
 tOFP_STATE_TBL  ofp_fsm_tbl[] = { 
 /*//////////////////////////////////////////////////////////////////////////////////
@@ -51,6 +52,8 @@ tOFP_STATE_TBL  ofp_fsm_tbl[] = {
 { S_ESTABLISHED,	E_OFP_TIMEOUT,    		S_ESTABLISHED,	{ A_query_tmr_expire, A_send_echo_request, A_start_timer, 0 }},
 
 { S_ESTABLISHED,    E_PACKET_IN,            S_ESTABLISHED,  { A_send_packet_in, 0 }},
+
+{ S_ESTABLISHED,    E_FLOW_MOD,            	S_ESTABLISHED,  { A_send_to_host, 0 }},
 
 { S_INVALID, 0 }
 };
@@ -116,7 +119,7 @@ STATUS OFP_FSM(tOFP_PORT *port_ccb, U16 event)
 }
 
 /*********************************************************************
- * A_check_up_port_cfg: 
+ * A_send_hello: 
  *
  *********************************************************************/
 STATUS A_send_hello(tOFP_PORT *port_ccb)	
@@ -137,7 +140,7 @@ STATUS A_send_hello(tOFP_PORT *port_ccb)
 }
 
 /*********************************************************************
- * A_config_port: 
+ * A_send_echo_request: 
  *
  *********************************************************************/
 STATUS A_send_echo_request(tOFP_PORT *port_ccb)	
@@ -332,13 +335,25 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 }
 
 /*********************************************************************
- * A_check_up_port_cfg: 
+ * A_send_packet_in: 
  *
  *********************************************************************/
 STATUS A_send_packet_in(tOFP_PORT *port_ccb)	
 {
 	drv_xmit(port_ccb->ofpbuf, port_ccb->ofpbuf_len, ofp_io_fds[0]);
 	printf("send packet_in message\n");
+
+	return TRUE;
+}
+
+/*********************************************************************
+ * A_send_to_host: 
+ *
+ *********************************************************************/
+STATUS A_send_to_host(tOFP_PORT *port_ccb)	
+{
+	//drv_xmit(port_ccb->ofpbuf, port_ccb->ofpbuf_len, ofp_io_fds[1]);
+	printf("send back to host\n");
 
 	return TRUE;
 }

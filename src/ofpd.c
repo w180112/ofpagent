@@ -58,12 +58,12 @@ STATUS OFP_ipc_init(void)
  * ofpdInit: 
  *
  **************************************************************/
-void ofpdInit(void)
+int ofpdInit(void)
 {
 	U16  i;
 	
 	if (OFP_SOCK_INIT() < 0){ //must be located ahead of system init
-		return;
+		return -1;
 	}
 	
 	ofp_interval = (U32)(10*SEC);
@@ -86,6 +86,8 @@ void ofpdInit(void)
 	ofp_max_msg_per_query = MAX_OFP_QUERY_NUM;
 	ofp_testEnable = TRUE; //to let driver ofp msg come in ...
 	DBG_OFP(DBGLVL1,NULL,"============ ofp init successfully ==============\n");
+
+	return 0;
 }
             
 /***************************************************************
@@ -104,12 +106,13 @@ int main(int argc, char **argv)
 	U16				event;
 	U16				ipc_type;
 	
-	ofpdInit();
+	if (ofpdInit() < 0)
+		return -1;
 	
-	if (fork() == 0){
+	if (fork() == 0) {
    		ofp_sockd_cp();
     }
-	if (fork() == 0){
+	if (fork() == 0) {
    		ofp_sockd_dp();
     }
     signal(SIGINT,OFP_bye);
@@ -117,10 +120,10 @@ int main(int argc, char **argv)
 	ofp_ports[0].sockfd = ofp_io_fds[0];
     OFP_FSM(&ofp_ports[0], E_START);
     
-	for(;;){
+	for(;;) {
 		//printf("\n===============================================\n");
 		//printf("%s> waiting for ipc_rcv2() ...\n",CODE_LOCATION);
-	    if (ipc_rcv2(ofpQid, &mbuf, &msize) == ERROR){
+	    if (ipc_rcv2(ofpQid, &mbuf, &msize) == ERROR) {
 	    	//printf("\n%s> ipc_rcv2 error ...\n",CODE_LOCATION);
 	    	continue;
 	    }

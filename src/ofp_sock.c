@@ -14,7 +14,7 @@
 struct ifreq	ethreq;
 static struct   sockaddr_ll 	sll; 
 int				ofpSockSize = sizeof(struct sockaddr_in);
-int				ofp_io_fds[10];
+int				ofp_io_fds[2];
 fd_set			ofp_io_ready[2];
 
 /**************************************************************************
@@ -26,9 +26,9 @@ fd_set			ofp_io_ready[2];
  **************************************************************************/ 
 int OFP_SOCK_INIT() 
 {
-	struct sockaddr_in sock_info[2], local_sock_info[2];
-	struct sock_fprog  	Filter;
-	static struct sock_filter  BPF_code[]={
+	struct sockaddr_in 			sock_info[2], local_sock_info[2];
+	struct sock_fprog  			Filter;
+	static struct sock_filter  	BPF_code[]={
 		{ 0x28, 0, 0, 0x0000000c },
 		{ 0x15, 0, 10, 0x00000800 },
 		{ 0x20, 0, 0, 0x0000001e },
@@ -51,7 +51,7 @@ int OFP_SOCK_INIT()
 	
 	Filter.len = sizeof(BPF_code)/sizeof(struct sock_filter);
 	Filter.filter = BPF_code;
-	if ((ofp_io_fds[1]=socket(PF_PACKET, SOCK_RAW, htons(0x0800))) < 0) {
+	if ((ofp_io_fds[1]=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) {
 	    perror("raw socket");
 	    return -1;
 	}
@@ -97,7 +97,8 @@ int OFP_SOCK_INIT()
 	bind(ofp_io_fds[0],(struct sockaddr *)&local_sock_info[0],sizeof(local_sock_info[0]));
     int err = connect(ofp_io_fds[0],(struct sockaddr *)&sock_info,sizeof(sock_info));
     if (err == -1) {
-        printf("Connection error.");
+        perror("Connection error.");
+		return err;
     }
 
 	 //--------------- configure TX ------------------
@@ -121,9 +122,8 @@ int OFP_SOCK_INIT()
  **************************************************************************/
 void ofp_sockd_cp(void)
 {
-	int		n,rxlen;
-	//U8 	    buffer[ETH_MTU];
-	tOFP_MSG msg;
+	int			n,rxlen;
+	tOFP_MSG 	msg;
 		
 	/* 
 	** to.tv_sec = 1;  ie. non-blocking; "select" will return immediately; =polling 
@@ -165,11 +165,8 @@ void ofp_sockd_cp(void)
  **************************************************************************/
 void ofp_sockd_dp(void)
 {
-	int		n, rxlen;
-	//U8 	    buffer[ETH_MTU];
-	tOFP_MSG msg;
-	struct sockaddr_in client;              
-	//int addrlen = sizeof(client), client_fd;
+	int			n, rxlen;
+	tOFP_MSG 	msg;
 		
 	for(;;) {
 		if ((n = select(ofp_io_fds[1]+1,&ofp_io_ready[1],(fd_set*)0,(fd_set*)0,NULL/*&to*/)) < 0) {

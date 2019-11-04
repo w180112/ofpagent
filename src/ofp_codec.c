@@ -69,12 +69,13 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 		printf("----------------------------------\nrecv echo reply\n");
 		break;
 	case OFPT_FLOW_MOD:
-		port_ccb->event = E_OTHERS;
+		port_ccb->event = E_FLOW_MOD;
 		printf("----------------------------------\nrecv flow mod\n");
-		PRINT_MESSAGE(mu, mulen);
+		OFP_encode_back_to_host(port_ccb, mu, mulen);
+		//PRINT_MESSAGE(mu, mulen);
 		break;
 	case OFPT_PACKET_OUT:
-		port_ccb->event = E_OTHERS;
+		port_ccb->event = E_PACKET_OUT;
 		printf("----------------------------------\nrecv packet out\n");
 		PRINT_MESSAGE(mu, mulen);
 		break;
@@ -85,7 +86,6 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 	return TRUE;
 }
 
-
 /*============================== ENCODING ===============================*/
 
 void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
@@ -93,7 +93,7 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 	uint16_t ofp_match_length = 0; 
 	uint32_t port_no = htonl(0x1);
 
-	port_ccb->ofp_packet_in.header.version = 0x04;
+	port_ccb->ofp_packet_in.header.version = OFP13_VERSION;
 	port_ccb->ofp_packet_in.header.type = OFPT_PACKET_IN;
 	uint16_t length = mulen + sizeof(ofp_packet_in_t) + 4/*pad*/ + 2/*pad*/ + sizeof(uint32_t);/*port no.*/
 	port_ccb->ofp_packet_in.header.xid = 0x0;
@@ -107,7 +107,7 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 
 	port_ccb->ofp_packet_in.match.type = htons(OFPMT_OXM);
 	port_ccb->ofp_packet_in.match.oxm_header.oxm_class = htons(OFPXMC_OPENFLOW_BASIC);
-	port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_struct.oxm_field = 0;
+	port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_struct.oxm_field = OFPXMT_OFB_IN_PORT;
 	port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_struct.oxm_hasmask = 0;
 	port_ccb->ofp_packet_in.match.oxm_header.oxm_union.oxm_struct.oxm_length = sizeof(uint32_t);
 	// align to 16 bytes
@@ -122,6 +122,35 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 	memcpy(port_ccb->ofpbuf+sizeof(ofp_packet_in_t)+sizeof(uint32_t)+6,mu,mulen);
 	port_ccb->ofpbuf_len = mulen + sizeof(ofp_packet_in_t) + 2 + 4 + sizeof(uint32_t);
 	printf("----------------------------------\nencode packet in\n");
+
+	
+	
+	uint16_t host_learn_index = buffer_id / 1024;
+	uint16_t shift;
+	for(shift=0; host_learn[host_learn_index].is_full==FALSE; host_learn_index++,shift++);
+	host_learn[host_learn_index].src_ip = *((uint32_t *)(mu + ETH_HDR_LEN + ETH_TYPE_LEN + 12/* IP header except IP */));
+	host_learn[host_learn_index].dst_ip = *((uint32_t *)(mu + ETH_HDR_LEN + ETH_TYPE_LEN + 12/* IP header except IP */ + IP_ADDR_LEN));
+	memcpy(host_learn[host_learn_index].dst_mac,mu,MAC_ADDR_LEN);
+	memcpy(host_learn[host_learn_index].src_mac,mu+MAC_ADDR_LEN,MAC_ADDR_LEN);
+	host_learn[host_learn_index].is_full = TRUE;
+	host_learn[host_learn_index].shift = shift;
+}
+
+void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
+	uint32_t dst_ip, src_ip = *((uint32_t *)(mu + sizeof(ofp_flow_mod_t)));
+	ofp_action_set_field_t *ofp_action_set_field = (ofp_action_set_field_t *)(mu + sizeof(ofp_flow_mod_t)) + sizeof(src_ip) + sizeof(4)/* padding */ + sizeof(ofp_instruction_actions_t));
+	ofp_oxm_header_t *ofp_oxm_header = (ofp_oxm_header_t *)(ofp_action_set_field->pad);
+
+
+	if (ofp_oxm_header->oxm_union.oxm_struct.oxm_field == OFPXMT_OFB_IPV4_DST)
+		dst_ip = *((uint32_t *)(mu + sizeof(ofp_flow_mod_t)) + sizeof(src_ip) + sizeof(4)/* padding */ + sizeof(ofp_instruction_actions_t) + sizeof(ofp_action_set_field_t)));
+	printf("src ip = %x, dst ip = %x\n", src_ip, dst_ip);
+
+	//host_learn[host_learn_index].shift
+	memcpy(port_ccb->ofpbuf,&src_ip,sizeof(uint32_t));
+	port_ccb->ofpbuf_len = sizeof(uint32_t);
+	memcpy(port_ccb->ofpbuf+sizeof(uint32_t),&dst_ip,sizeof(uint32_t));
+	port_ccb->ofpbuf_len += sizeof(uint32_t);
 }
 #if 0
 /*************************************************************************

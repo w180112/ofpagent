@@ -40,4 +40,4 @@ To remove the binary files
 ## Test environment:
 
 1. CentOS 7.6 and AMD Ryzen 2700, 64GB ram desktop
-2. Ryu SDN controller
+2. Can connect to Ryu/ONOS/OpenDaylight SDN controller

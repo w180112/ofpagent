@@ -9,6 +9,7 @@
 #include "ofp_common.h"
 #include "ofp_asyn.h"
 #include "ofp_ctrl2sw.h"
+#include <ip_codec.h>
 
 #define OFP_Q_KEY				0x0b00
 #define ETH_MTU					1500
@@ -158,3 +159,14 @@ typedef enum {
 	/* Meters and rate limiters configuration messages. */
 	OFPT_METER_MOD,
 }OFPT_t;
+
+typedef struct host_learn {
+	unsigned char src_mac[MAC_ADDR_LEN];
+	unsigned char dst_mac[MAC_ADDR_LEN];
+	uint32_t src_ip;
+	uint32_t dst_ip;
+	uint16_t src_port;
+	uint16_t shift;
+	BOOL is_full;
+}host_learn_t;
+host_learn_t host_learn[1024];
