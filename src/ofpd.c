@@ -23,7 +23,7 @@ tOFP_PORT			ofp_ports[MAX_USER_PORT_NUM+1]; //port is 1's based
 
 tIPC_ID 			ofpQid=-1;
 
-extern int			ofp_io_fds[10];
+extern int			ofp_io_fds[2];
 
 /*---------------------------------------------------------
  * ofp_bye : signal handler for INTR-C only
@@ -80,6 +80,7 @@ int ofpdInit(void)
 		ofp_ports[i].imsg_cnt =
 		ofp_ports[i].err_imsg_cnt =
 		ofp_ports[i].omsg_cnt = 0;
+		ofp_ports[i].head = NULL;
 	}
 	
 	port_ccb->head = NULL;

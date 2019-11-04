@@ -213,15 +213,15 @@ U16 CHKSUM_IP_HDR2(tIP_PKT *ip_pkt, unsigned char opt_en, unsigned long *opt_add
     if (opt_en){ /* options and padding */
     /*
         if(rx_debug)
-            OSS_PRINT("opt_pas\n\r");
+            printf("opt_pas\n\r");
             */
         u8p = (U8*)opt_addr;
         for(i=0; i<(ip_pkt->ver_ihl.IHL-5)*2; i++){
-            /*OSS_PRINT("[%x] [%x]", *u8p, *(u8p+1)); */
+            /*printf("[%x] [%x]", *u8p, *(u8p+1)); */
             sum += (U16)(*u8p<<8 | *(u8p+1));
             u8p += 2;
         }
-        /*OSS_PRINT("\n\r");*/
+        /*printf("\n\r");*/
     }
     
     return CHECK_SUM(sum);
@@ -236,30 +236,30 @@ void PRINT_IP_PKT(tIP_PKT *ip_pkt)
 {
     U8  i;
 
-    OSS_PRINT("-----------------------------------\n");
-    OSS_PRINT("ip_pkt->ver_ihl.ver=%x\n",ip_pkt->ver_ihl.ver);
-    OSS_PRINT("ip_pkt->ver_ihl.IHL=%x\n",ip_pkt->ver_ihl.IHL);
-    OSS_PRINT("ip_pkt->tos=%x\n",ip_pkt->tos);
-    OSS_PRINT("ip_pkt->total_len=%x\n",ip_pkt->total_len);
-    OSS_PRINT("ip_pkt->id=%x\n",ip_pkt->id);
-    OSS_PRINT("ip_pkt->ttl=%x\n",ip_pkt->ttl);
-    OSS_PRINT("ip_pkt->proto=%x\n",ip_pkt->proto);
-    OSS_PRINT("ip_pkt->head_chksum=%x\n",ip_pkt->head_chksum);
+    printf("-----------------------------------\n");
+    printf("ip_pkt->ver_ihl.ver=%x\n",ip_pkt->ver_ihl.ver);
+    printf("ip_pkt->ver_ihl.IHL=%x\n",ip_pkt->ver_ihl.IHL);
+    printf("ip_pkt->tos=%x\n",ip_pkt->tos);
+    printf("ip_pkt->total_len=%x\n",ip_pkt->total_len);
+    printf("ip_pkt->id=%x\n",ip_pkt->id);
+    printf("ip_pkt->ttl=%x\n",ip_pkt->ttl);
+    printf("ip_pkt->proto=%x\n",ip_pkt->proto);
+    printf("ip_pkt->head_chksum=%x\n",ip_pkt->head_chksum);
 
-    OSS_PRINT("ip_pkt->src=> ");
+    printf("ip_pkt->src=> ");
     for(i=0; i<IP_ADDR_LEN; i++){
-        OSS_PRINT("%x",ip_pkt->cSA[i]);
-        if (i<3)  OSS_PRINT(".");
+        printf("%x",ip_pkt->cSA[i]);
+        if (i<3)  printf(".");
     }
-    OSS_PRINT("\n");
+    printf("\n");
 
-    OSS_PRINT("ip_pkt->dst=> ");
+    printf("ip_pkt->dst=> ");
     for(i=0; i<IP_ADDR_LEN; i++){
-        OSS_PRINT("%x",ip_pkt->cDA[i]);
-        if (i<3)  OSS_PRINT(".");
+        printf("%x",ip_pkt->cDA[i]);
+        if (i<3)  printf(".");
     }
-    OSS_PRINT("\n");
-    OSS_PRINT("-----------------------------------\n");
+    printf("\n");
+    printf("-----------------------------------\n");
 }
 
 #if 0
@@ -394,15 +394,15 @@ void PRINT_UDP_PKT(tUDP_PKT * udp_pkt)
 {
     U16  i;
 
-    OSS_PRINT("-----------------------------------\n");
-    OSS_PRINT("udp_pkt->src_port=%x\n",udp_pkt->src);
-    OSS_PRINT("udp_pkt->dst_port=%x\n",udp_pkt->dst);
-    OSS_PRINT("udp_pkt->len=%x\n",udp_pkt->len);
-    OSS_PRINT("udp_pkt->chksum=%x\n",udp_pkt->chksum);
-    OSS_PRINT("udp_pkt->data=");
+    printf("-----------------------------------\n");
+    printf("udp_pkt->src_port=%x\n",udp_pkt->src);
+    printf("udp_pkt->dst_port=%x\n",udp_pkt->dst);
+    printf("udp_pkt->len=%x\n",udp_pkt->len);
+    printf("udp_pkt->chksum=%x\n",udp_pkt->chksum);
+    printf("udp_pkt->data=");
     for(i=0; i<udp_pkt->len-UDP_HDR_LEN; i++)
-        OSS_PRINT("%02x ",(U8)*(udp_pkt->data+i));
-    OSS_PRINT("\n-----------------------------------\n");
+        printf("%02x ",(U8)*(udp_pkt->data+i));
+    printf("\n-----------------------------------\n");
 }
 
 /*=================================  ARP  =================================*/

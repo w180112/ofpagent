@@ -19,7 +19,7 @@ void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen);
 STATUS insert_node(host_learn_t *head, host_learn_t *node);
 host_learn_t *find_node(host_learn_t *head, uint32_t buffer_id);
 STATUS ip_hdr_init(tIP_PKT *ip_hdr, uint32_t src_ip, uint32_t dst_ip);
-STATUS udp_hdr_init(tUDP_PKT *udp_hdr, uint32_t *host_src_ip, uint32_t *host_dst_ip);
+STATUS udp_hdr_init(tUDP_PKT *udp_hdr, uint8_t *payload);
 
 /*============================ DECODE ===============================*/
 
@@ -141,7 +141,7 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 
 void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) 
 {
-	uint32_t buffer_id = htonl((ofp_flow_mod_t *)mu->buffer_id); 
+	uint32_t buffer_id = htonl(((ofp_flow_mod_t *)mu)->buffer_id); 
 	uint32_t dst_ip, src_ip = *((uint32_t *)(mu + sizeof(ofp_flow_mod_t)));
 	ofp_action_set_field_t *ofp_action_set_field = (ofp_action_set_field_t *)(mu + sizeof(ofp_flow_mod_t) + sizeof(src_ip) + sizeof(4)/* padding */ + sizeof(ofp_instruction_actions_t));
 	ofp_oxm_header_t *ofp_oxm_header = (ofp_oxm_header_t *)(ofp_action_set_field->pad);
@@ -164,7 +164,10 @@ void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen)
 	U8 *tmp = ENCODE_IP_PKT(&ip_hdr,(port_ccb->ofpbuf)+MAC_ADDR_LEN*2+2);
 	port_ccb->ofpbuf_len += 20;
 
-	udp_hdr_init(&udp_hdr,&src_ip,&dst_ip);
+	uint8_t payload[8];
+	memcpy(payload,&src_ip,IP_ADDR_LEN);
+	memcpy(payload+IP_ADDR_LEN,&dst_ip,IP_ADDR_LEN);
+	udp_hdr_init(&udp_hdr,payload);
 	tmp = ENCODE_UDP_PKT(&ip_hdr,&udp_hdr,tmp);
 	port_ccb->ofpbuf_len += UDP_HDR_LEN;
 
@@ -174,10 +177,12 @@ void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen)
 
 STATUS insert_node(host_learn_t *head, host_learn_t *node)
 {
-	if (port_ccb->head == NULL) {
-		port_ccb->head = node;
+	host_learn_t *cur;
+
+	if (head == NULL) {
+		head = node;
 	}
-	for(host_learn_t *cur=port_ccb->head; cur->next!=NULL; cur=cur->next);
+	for(cur=head; cur->next!=NULL; cur=cur->next);
 	cur->next = node;
 	return TRUE;
 }
@@ -203,23 +208,22 @@ STATUS ip_hdr_init(tIP_PKT *ip_hdr, uint32_t src_ip, uint32_t dst_ip)
 	ip_hdr->tos = 0;
 	ip_hdr->total_len = 36;
 	ip_hdr->id = 0;
-	ip_hdr->flag_frag.flag = 2
+	ip_hdr->flag_frag.flag = 2;
 	ip_hdr->flag_frag.frag_off = 0;
 	ip_hdr->ttl = 64;
 	ip_hdr->proto = PROTO_TYPE_UDP;
-	memcpy(ip_hdr->cSA,src_ip,IP_ADDR_LEN);
-	memcpy(ip_hdr->cDA,dst_ip,IP_ADDR_LEN);
+	memcpy(ip_hdr->cSA,&src_ip,IP_ADDR_LEN);
+	memcpy(ip_hdr->cDA,&dst_ip,IP_ADDR_LEN);
 
 	return TRUE;
 }
 
-STATUS udp_hdr_init(tUDP_PKT *udp_hdr, uint32_t *host_src_ip, uint32_t *host_dst_ip)
+STATUS udp_hdr_init(tUDP_PKT *udp_hdr, uint8_t *payload)
 {
 	udp_hdr->src = 6655;
 	udp_hdr->dst = 8000;
 	udp_hdr->len = 16;
-	udp_hdr->data = host_src_ip;
-	udp_hdr->data + sizeof(uint32_t) = host_dst_ip;
+	udp_hdr->data = payload;
 	return TRUE;
 }
 
