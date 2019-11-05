@@ -7,6 +7,7 @@
 /\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\/\*/
 
 #include        	<common.h>
+#include 			<unistd.h>
 #include        	"ofpd.h"
 #include			"ofp_codec.h"
 #include			"ofp_fsm.h"
@@ -24,6 +25,10 @@ tOFP_PORT			ofp_ports[MAX_USER_PORT_NUM+1]; //port is 1's based
 tIPC_ID 			ofpQid=-1;
 
 extern int			ofp_io_fds[2];
+
+pid_t ofp_cp_pid;
+pid_t ofp_dp_pid;
+pid_t tmr_pid;
 
 /*---------------------------------------------------------
  * ofp_bye : signal handler for INTR-C only
@@ -67,7 +72,7 @@ int ofpdInit(void)
 	}
 	
 	ofp_interval = (U32)(10*SEC);
-	tmrInit();
+	tmr_pid = tmrInit();
 	OFP_ipc_init();
     
     //--------- default of all ports ----------
@@ -110,10 +115,10 @@ int main(int argc, char **argv)
 	if (ofpdInit() < 0)
 		return -1;
 	
-	if (fork() == 0) {
+	if ((ofp_cp_pid=fork()) == 0) {
    		ofp_sockd_cp();
     }
-	if (fork() == 0) {
+	if ((ofp_dp_pid=fork()) == 0) {
    		ofp_sockd_dp();
     }
     signal(SIGINT,OFP_bye);

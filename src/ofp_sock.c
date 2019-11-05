@@ -16,6 +16,7 @@ static struct   sockaddr_ll 	sll;
 int				ofpSockSize = sizeof(struct sockaddr_in);
 int				ofp_io_fds[2];
 fd_set			ofp_io_ready[2];
+struct sockaddr_in 	sock_info[2], local_sock_info[2];
 
 /**************************************************************************
  * OFP_SOCK_INIT :
@@ -26,7 +27,6 @@ fd_set			ofp_io_ready[2];
  **************************************************************************/ 
 int OFP_SOCK_INIT() 
 {
-	struct sockaddr_in 			sock_info[2], local_sock_info[2];
 	struct sock_fprog  			Filter;
 	static struct sock_filter  	BPF_code[]={
 		{ 0x28, 0, 0, 0x0000000c },
@@ -145,10 +145,13 @@ void ofp_sockd_cp(void)
     		rxlen = recv(ofp_io_fds[0],msg.buffer,ETH_MTU,0);
     		if (rxlen <= 0) {
       			printf("Error! recv(): len <= 0 at CP\n");
-       			continue;
+				msg.sockfd = 0;
+				msg.type = DRIV_FAIL;
     		}
-    		msg.sockfd = ofp_io_fds[0];
-			msg.type = DRIV_CP;
+			else {
+    			msg.sockfd = ofp_io_fds[0];
+				msg.type = DRIV_CP;
+			}
    			/*printf("=========================================================\n");
 			printf("rxlen=%d\n",rxlen);
     		PRINT_MESSAGE((char*)buffer, rxlen);*/

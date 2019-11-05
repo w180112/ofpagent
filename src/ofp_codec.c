@@ -13,6 +13,8 @@
 #include 		"ofp_asyn.h"
 #include 		"ofp_ctrl2sw.h"
 #include 		"ofp_oxm.h"
+#include 		<unistd.h>
+#include 		<signal.h>
 
 void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen);
 void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen);
@@ -20,6 +22,10 @@ STATUS insert_node(host_learn_t **head, host_learn_t *node);
 host_learn_t *find_node(host_learn_t *head, uint32_t buffer_id);
 STATUS ip_hdr_init(tIP_PKT *ip_hdr, uint32_t src_ip, uint32_t dst_ip);
 STATUS udp_hdr_init(tUDP_PKT *udp_hdr, uint8_t *payload);
+
+extern pid_t ofp_cp_pid;
+extern pid_t ofp_dp_pid;
+extern pid_t tmr_pid;
 
 /*============================ DECODE ===============================*/
 
@@ -51,6 +57,13 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 		OFP_encode_packet_in(port_ccb, mu, mulen);
 		port_ccb->event = E_PACKET_IN;
 		return TRUE;
+	}
+	if (msg->type == DRIV_FAIL) {
+		kill(tmr_pid,SIGINT);
+        kill(ofp_cp_pid,SIGINT);
+        kill(ofp_dp_pid,SIGINT);
+		kill(getpid(),SIGINT);
+		return ERROR;
 	}
     //PRINT_MESSAGE(mu,mulen);
 	switch(((ofp_header_t *)mu)->type) {
