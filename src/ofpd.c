@@ -83,7 +83,6 @@ int ofpdInit(void)
 		ofp_ports[i].head = NULL;
 	}
 	
-	port_ccb->head = NULL;
 	sleep(1);
 	ofp_max_msg_per_query = MAX_OFP_QUERY_NUM;
 	ofp_testEnable = TRUE; //to let driver ofp msg come in ...

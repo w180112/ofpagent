@@ -16,7 +16,7 @@
 
 void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen);
 void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen);
-STATUS insert_node(host_learn_t *head, host_learn_t *node);
+STATUS insert_node(host_learn_t **head, host_learn_t *node);
 host_learn_t *find_node(host_learn_t *head, uint32_t buffer_id);
 STATUS ip_hdr_init(tIP_PKT *ip_hdr, uint32_t src_ip, uint32_t dst_ip);
 STATUS udp_hdr_init(tUDP_PKT *udp_hdr, uint8_t *payload);
@@ -104,7 +104,6 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 	port_ccb->ofp_packet_in.header.xid = 0x0;
 
 	port_ccb->ofp_packet_in.buffer_id = htonl(buffer_id);
-	buffer_id++;
 	port_ccb->ofp_packet_in.total_len = htons(mulen);
 	port_ccb->ofp_packet_in.reason = OFPR_NO_MATCH;
 	port_ccb->ofp_packet_in.table_id = 0;
@@ -136,7 +135,8 @@ void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
 	node->dst_ip = *((uint32_t *)(mu + ETH_HDR_LEN + ETH_TYPE_LEN + 12/* IP header except IP */ + IP_ADDR_LEN));
 	node->buffer_id = buffer_id;
 	node->next = NULL;
-	insert_node(port_ccb->head,node);
+	insert_node(&(port_ccb->head),node);
+	buffer_id++;
 }
 
 void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) 
@@ -147,7 +147,10 @@ void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen)
 	ofp_oxm_header_t *ofp_oxm_header = (ofp_oxm_header_t *)(ofp_action_set_field->pad);
 	tIP_PKT ip_hdr;
 	tUDP_PKT udp_hdr;
-
+	if (ofp_action_set_field->type != htons(OFPAT_SET_FIELD)) {
+		port_ccb->event = E_OTHERS;
+		return;
+	}
 	ofp_oxm_header->oxm_union.oxm_value = htons(ofp_oxm_header->oxm_union.oxm_value);
 	if (ofp_oxm_header->oxm_union.oxm_struct.oxm_field == OFPXMT_OFB_IPV4_DST)
 		dst_ip = *((uint32_t *)(mu + sizeof(ofp_flow_mod_t) + sizeof(src_ip) + sizeof(4)/* padding */ + sizeof(ofp_instruction_actions_t) + sizeof(ofp_action_set_field_t)));
@@ -155,8 +158,8 @@ void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen)
 
 	host_learn_t *node = find_node(port_ccb->head,buffer_id);
 
-	memcpy(port_ccb->ofpbuf,node->dst_mac,MAC_ADDR_LEN);
-	memcpy(port_ccb->ofpbuf+MAC_ADDR_LEN,node->src_mac,MAC_ADDR_LEN);
+	memcpy(port_ccb->ofpbuf,node->src_mac,MAC_ADDR_LEN);
+	memcpy(port_ccb->ofpbuf+MAC_ADDR_LEN,node->dst_mac,MAC_ADDR_LEN);
 	*((uint16_t *)(port_ccb->ofpbuf+MAC_ADDR_LEN*2)) = htons(FRAME_TYPE_IP);
 	port_ccb->ofpbuf_len = 14;
 
@@ -170,19 +173,19 @@ void OFP_encode_back_to_host(tOFP_PORT *port_ccb, U8 *mu, U16 mulen)
 	udp_hdr_init(&udp_hdr,payload);
 	tmp = ENCODE_UDP_PKT(&ip_hdr,&udp_hdr,tmp);
 	port_ccb->ofpbuf_len += UDP_HDR_LEN;
-
+	memcpy(tmp,payload,8);
 	port_ccb->ofpbuf_len += IP_ADDR_LEN*2;
 	free(node);
 }
 
-STATUS insert_node(host_learn_t *head, host_learn_t *node)
+STATUS insert_node(host_learn_t **head, host_learn_t *node)
 {
 	host_learn_t *cur;
 
-	if (head == NULL) {
-		head = node;
+	if (*head == NULL) {
+		*head = node;
 	}
-	for(cur=head; cur->next!=NULL; cur=cur->next);
+	for(cur=*head; cur->next!=NULL; cur=cur->next);
 	cur->next = node;
 	return TRUE;
 }
@@ -207,13 +210,13 @@ STATUS ip_hdr_init(tIP_PKT *ip_hdr, uint32_t src_ip, uint32_t dst_ip)
 	ip_hdr->ver_ihl.IHL = 5;
 	ip_hdr->tos = 0;
 	ip_hdr->total_len = 36;
-	ip_hdr->id = 0;
+	ip_hdr->id = 1;
 	ip_hdr->flag_frag.flag = 2;
 	ip_hdr->flag_frag.frag_off = 0;
 	ip_hdr->ttl = 64;
 	ip_hdr->proto = PROTO_TYPE_UDP;
-	memcpy(ip_hdr->cSA,&src_ip,IP_ADDR_LEN);
-	memcpy(ip_hdr->cDA,&dst_ip,IP_ADDR_LEN);
+	memcpy(ip_hdr->cSA,&dst_ip,IP_ADDR_LEN);
+	memcpy(ip_hdr->cDA,&src_ip,IP_ADDR_LEN);
 
 	return TRUE;
 }

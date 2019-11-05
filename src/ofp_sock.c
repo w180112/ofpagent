@@ -40,7 +40,7 @@ int OFP_SOCK_INIT()
 		{ 0xb1, 0, 0, 0x0000000e },
 		{ 0x48, 0, 0, 0x00000010 },
 		{ 0x15, 0, 1, 0x000019ff },
-		{ 0x6, 0, 0, 0x00000800 },
+		{ 0x6, 0, 0, 0x00000400 },
 		{ 0x6, 0, 0, 0x00000000 },
 	};
 
@@ -178,7 +178,7 @@ void ofp_sockd_dp(void)
 		if (n == 0)  continue;
 		if (FD_ISSET(ofp_io_fds[1],&ofp_io_ready[1])) {
     		rxlen = recvfrom(ofp_io_fds[1],msg.buffer,ETH_MTU,0,NULL,NULL);
-    		if (rxlen <= 0){
+    		if (rxlen <= 0) {
       			printf("Error! recvfrom(): len <= 0 at DP\n");
        			continue;
     		}
@@ -202,7 +202,10 @@ void drv_xmit(U8 *mu, U16 mulen, int sockfd)
 {
 	printf("\ndrv_xmit ............\n");
 	PRINT_MESSAGE((unsigned char*)mu, mulen);
-	send(sockfd, mu, mulen, 0);
+	if (sockfd == ofp_io_fds[0])
+		send(sockfd, mu, mulen, 0);
+	else
+		sendto(sockfd, mu, mulen, 0, (struct sockaddr*)&sll, sizeof(sll));
 }
 
 /*********************************************************
