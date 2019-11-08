@@ -16,7 +16,6 @@ static struct   sockaddr_ll 	sll;
 int				ofpSockSize = sizeof(struct sockaddr_in);
 int				ofp_io_fds[2];
 fd_set			ofp_io_ready[2];
-struct sockaddr_in 	sock_info[2], local_sock_info[2];
 
 /**************************************************************************
  * OFP_SOCK_INIT :
@@ -27,7 +26,9 @@ struct sockaddr_in 	sock_info[2], local_sock_info[2];
  **************************************************************************/ 
 int OFP_SOCK_INIT() 
 {
+	struct sockaddr_in 			sock_info[2], local_sock_info[2];
 	struct sock_fprog  			Filter;
+	struct ifreq 				ifr;
 	static struct sock_filter  	BPF_code[]={
 		{ 0x28, 0, 0, 0x0000000c },
 		{ 0x15, 0, 10, 0x00000800 },
@@ -67,13 +68,21 @@ int OFP_SOCK_INIT()
     sock_info[0].sin_addr.s_addr = inet_addr("192.168.10.171");
     sock_info[0].sin_port = htons(6653);
     
+	ifr.ifr_addr.sa_family = AF_INET;
+    strncpy(ifr.ifr_name,IF_NAME,IFNAMSIZ-1);
+	if (ioctl(ofp_io_fds[0],SIOCGIFADDR,&ifr) != 0) {
+        perror("ioctl failed");
+        close(*sockfd);
+        return -1;
+    }
+
 	bzero(&local_sock_info[0], sizeof(local_sock_info[0]));
     local_sock_info[0].sin_family = PF_INET;
-    local_sock_info[0].sin_addr.s_addr = inet_addr("192.168.10.156");
+    local_sock_info[0].sin_addr.s_addr = inet_addr(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
     local_sock_info[0].sin_port = htons(6654);
 
 	/* Set the network card in promiscuous mode */
-  	strncpy(ethreq.ifr_name, IF_NAME, IFNAMSIZ);
+  	strncpy(ethreq.ifr_name,IF_NAME,IFNAMSIZ)-1;
   	if (ioctl(ofp_io_fds[1], SIOCGIFFLAGS, &ethreq)==-1) {
     	perror("ioctl (SIOCGIFCONF) 1\n");
     	close(ofp_io_fds[1]);
@@ -82,7 +91,7 @@ int OFP_SOCK_INIT()
   	
   	ethreq.ifr_flags |= IFF_PROMISC;
   	if (ioctl(ofp_io_fds[1], SIOCSIFFLAGS, &ethreq)==-1) {
-    	printf("ioctl (SIOCGIFCONF) 2\n");
+    	perror("ioctl (SIOCGIFCONF) 2\n");
     	close(ofp_io_fds[1]);
     	return -1;
   	}

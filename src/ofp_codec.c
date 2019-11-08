@@ -107,7 +107,7 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 /*============================== ENCODING ===============================*/
 
 void OFP_encode_packet_in(tOFP_PORT *port_ccb, U8 *mu, U16 mulen) {
-	static int buffer_id = 0;
+	static int buffer_id = 1;
 	uint16_t ofp_match_length = 0; 
 	uint32_t port_no = htonl(0x1);
 

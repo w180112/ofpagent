@@ -273,10 +273,10 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	ofp_multipart_t ofp_multipart;
 	struct ofp_port ofp_port_desc;
 	struct ifaddrs *ifaddr; 
-	struct ifaddrs *ifa;
+	//struct ifaddrs *ifa;
 	U8 buf[256];
 	uintptr_t buf_ptr;
-	int i;
+	//int i;
 
 	if (getifaddrs(&ifaddr) == -1) {
     	perror("getifaddrs");
