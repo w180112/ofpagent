@@ -159,6 +159,7 @@ int main(int argc, char **argv)
    					ofp_sockd_dp();
 				ofp_ports[0].sockfd = ofp_io_fds[0];
 				OFP_FSM(&ofp_ports[0], E_START);
+				puts("====================Restart connection.====================");
 			}
 			OFP_FSM(&ofp_ports[0], ofp_ports[0].event);
 			break;
