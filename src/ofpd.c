@@ -73,7 +73,6 @@ int ofpdInit(void)
 	
 	ofp_interval = (U32)(10*SEC);
 	tmr_pid = tmrInit();
-	OFP_ipc_init();
     
     //--------- default of all ports ----------
 	for(i=1; i<=MAX_USER_PORT_NUM; i++){
@@ -114,7 +113,7 @@ int main(int argc, char **argv)
 	
 	if (ofpdInit() < 0)
 		return -1;
-	
+	OFP_ipc_init();
 	if ((ofp_cp_pid=fork()) == 0) {
    		ofp_sockd_cp();
     }
@@ -151,6 +150,16 @@ int main(int argc, char **argv)
 			DBG_OFP(DBGLVL1,&ofp_ports[0],"<-- Rx ofp message\n");
 			if (OFP_decode_frame(mail, &ofp_ports[0]) == ERROR)
 				continue;
+			else if (OFP_decode_frame(mail, &ofp_ports[0]) == RESTART) {
+				if (ofpdInit() < 0)
+					return -1;
+				if ((ofp_cp_pid=fork()) == 0)
+   					ofp_sockd_cp();
+				if ((ofp_dp_pid=fork()) == 0)
+   					ofp_sockd_dp();
+				ofp_ports[0].sockfd = ofp_io_fds[0];
+				OFP_FSM(&ofp_ports[0], E_START);
+			}
 			OFP_FSM(&ofp_ports[0], ofp_ports[0].event);
 			break;
 		

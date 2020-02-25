@@ -62,8 +62,8 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 		kill(tmr_pid,SIGINT);
         kill(ofp_cp_pid,SIGINT);
         kill(ofp_dp_pid,SIGINT);
-		kill(getpid(),SIGINT);
-		return ERROR;
+		//kill(getpid(),SIGINT);
+		return RESTART;
 	}
     //PRINT_MESSAGE(mu,mulen);
 	switch(((ofp_header_t *)mu)->type) {
@@ -197,6 +197,7 @@ STATUS insert_node(host_learn_t **head, host_learn_t *node)
 
 	if (*head == NULL) {
 		*head = node;
+		return;
 	}
 	for(cur=*head; cur->next!=NULL; cur=cur->next);
 	cur->next = node;

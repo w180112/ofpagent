@@ -23,6 +23,8 @@
 #define MAX_USER_PORT_NUM		10
 #define MAX_OFP_QUERY_NUM		10
 
+#define RESTART 				-2
+
 typedef struct {
 	U8		subt;
 	U16		len;

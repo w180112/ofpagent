@@ -156,6 +156,8 @@ void ofp_sockd_cp(void)
       			printf("Error! recv(): len <= 0 at CP\n");
 				msg.sockfd = 0;
 				msg.type = DRIV_FAIL;
+				close(ofp_io_fds[0]);
+				close(ofp_io_fds[1]);
     		}
 			else {
     			msg.sockfd = ofp_io_fds[0];
