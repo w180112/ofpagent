@@ -110,6 +110,7 @@ int main(int argc, char **argv)
 	//U16				port;
 	U16				event;
 	U16				ipc_type;
+	int				ret;
 	
 	if (ofpdInit() < 0)
 		return -1;
@@ -148,9 +149,9 @@ int main(int argc, char **argv)
 			mail = (tOFP_MBX*)mbuf.mtext;
 			//ofp_ports[port].port = TEST_PORT_ID;
 			DBG_OFP(DBGLVL1,&ofp_ports[0],"<-- Rx ofp message\n");
-			if (OFP_decode_frame(mail, &ofp_ports[0]) == ERROR)
+			if ((ret = OFP_decode_frame(mail, &ofp_ports[0])) == ERROR)
 				continue;
-			else if (OFP_decode_frame(mail, &ofp_ports[0]) == RESTART) {
+			else if (ret == RESTART) {
 				if (ofpdInit() < 0)
 					return -1;
 				if ((ofp_cp_pid=fork()) == 0)
