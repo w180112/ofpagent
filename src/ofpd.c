@@ -30,6 +30,8 @@ pid_t ofp_cp_pid;
 pid_t ofp_dp_pid;
 pid_t tmr_pid;
 
+uint8_t restart;
+
 /*---------------------------------------------------------
  * ofp_bye : signal handler for INTR-C only
  *--------------------------------------------------------*/
@@ -111,15 +113,29 @@ int main(int argc, char **argv)
 	U16				event;
 	U16				ipc_type;
 	int				ret;
+	int 			shmid;
 	
+	/*if ((shmid = shmget(8888,sizeof(*restart),IPC_CREAT|0666)) < 0) {
+        perror( "shmget" );
+        exit(1);
+    }
+	if((restart = shmat(shmid,NULL,0)) == -1) {
+        perror( "shmat" );
+        exit(1);
+    }
+	*restart = 0;*/
+	restart = CP_RESTART | DP_RESTART;
 	if (ofpdInit() < 0)
 		return -1;
+	restart = 0;
 	OFP_ipc_init();
 	if ((ofp_cp_pid=fork()) == 0) {
    		ofp_sockd_cp();
+		return 0;
     }
 	if ((ofp_dp_pid=fork()) == 0) {
    		ofp_sockd_dp();
+		return 0;
     }
     signal(SIGINT,OFP_bye);
     
@@ -152,12 +168,16 @@ int main(int argc, char **argv)
 			if ((ret = OFP_decode_frame(mail, &ofp_ports[0])) == ERROR)
 				continue;
 			else if (ret == RESTART) {
-				if (ofpdInit() < 0)
-					return -1;
-				if ((ofp_cp_pid=fork()) == 0)
+				for(;;) {
+					sleep(1);
+					if (ofpdInit() == 0)
+						break;
+				}
+				restart = 0;
+				if ((ofp_cp_pid=fork()) == 0) {
    					ofp_sockd_cp();
-				if ((ofp_dp_pid=fork()) == 0)
-   					ofp_sockd_dp();
+					return 0;
+				}
 				ofp_ports[0].sockfd = ofp_io_fds[0];
 				OFP_FSM(&ofp_ports[0], E_START);
 				puts("====================Restart connection.====================");

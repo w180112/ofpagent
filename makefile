@@ -26,4 +26,4 @@ $(TARGET): $(OBJ) ./src/*.h
 # Clean 
 ######################################
 clean:
-	rm -f *.o ofpagent
+	rm -f src/*.o ofpagent

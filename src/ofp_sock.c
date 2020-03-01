@@ -17,6 +17,8 @@ int				ofpSockSize = sizeof(struct sockaddr_in);
 int				ofp_io_fds[2];
 fd_set			ofp_io_ready[2];
 
+extern uint8_t restart;
+
 /**************************************************************************
  * OFP_SOCK_INIT :
  *
@@ -33,7 +35,7 @@ int OFP_SOCK_INIT()
 		{ 0x28, 0, 0, 0x0000000c },
 		{ 0x15, 0, 10, 0x00000800 },
 		{ 0x20, 0, 0, 0x0000001e },
-		{ 0x15, 0, 8, 0xc0a80a9c },
+		{ 0x15, 0, 8, 0xc0a80a8a },
 		{ 0x30, 0, 0, 0x00000017 },
 		{ 0x15, 0, 6, 0x00000011 },
 		{ 0x28, 0, 0, 0x00000014 },
@@ -41,86 +43,81 @@ int OFP_SOCK_INIT()
 		{ 0xb1, 0, 0, 0x0000000e },
 		{ 0x48, 0, 0, 0x00000010 },
 		{ 0x15, 0, 1, 0x000019ff },
-		{ 0x6, 0, 0, 0x00000400 },
+		{ 0x6, 0, 0, 0x00040000 },
 		{ 0x6, 0, 0, 0x00000000 },
 	};
-
-    if ((ofp_io_fds[0]=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-	    printf("socket");
-	    return -1;
-	}
-	
-	Filter.len = sizeof(BPF_code)/sizeof(struct sock_filter);
-	Filter.filter = BPF_code;
-	if ((ofp_io_fds[1]=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) {
-	    perror("raw socket");
-	    return -1;
-	}
-
-    FD_ZERO(&ofp_io_ready[0]);
-    FD_SET(ofp_io_fds[0],&ofp_io_ready[0]);
-
-	FD_ZERO(&ofp_io_ready[1]);
-    FD_SET(ofp_io_fds[1],&ofp_io_ready[1]);
+	if (restart & 1 == 1) {
+    	if ((ofp_io_fds[0]=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+	    	printf("socket");
+	    	return -1;
+		}
+		FD_ZERO(&ofp_io_ready[0]);
+    	FD_SET(ofp_io_fds[0],&ofp_io_ready[0]);
+		bzero(&sock_info[0], sizeof(sock_info[0]));
+    	sock_info[0].sin_family = PF_INET;
+    	sock_info[0].sin_addr.s_addr = inet_addr("192.168.10.172");
+    	sock_info[0].sin_port = htons(6653);
     
-	bzero(&sock_info[0], sizeof(sock_info[0]));
-    sock_info[0].sin_family = PF_INET;
-    sock_info[0].sin_addr.s_addr = inet_addr("192.168.10.171");
-    sock_info[0].sin_port = htons(6653);
-    
-	ifr.ifr_addr.sa_family = AF_INET;
-    strncpy(ifr.ifr_name,IF_NAME,IFNAMSIZ-1);
-	if (ioctl(ofp_io_fds[0],SIOCGIFADDR,&ifr) != 0) {
-        perror("ioctl failed");
-        close(*sockfd);
-        return -1;
-    }
+		ifr.ifr_addr.sa_family = AF_INET;
+    	strncpy(ifr.ifr_name,IF_NAME,IFNAMSIZ-1);
+		if (ioctl(ofp_io_fds[0],SIOCGIFADDR,&ifr) != 0) {
+        	perror("ioctl failed");
+        	close(ofp_io_fds[0]);
+        	return -1;
+    	}
 
-	bzero(&local_sock_info[0], sizeof(local_sock_info[0]));
-    local_sock_info[0].sin_family = PF_INET;
-    local_sock_info[0].sin_addr.s_addr = inet_addr(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
-    local_sock_info[0].sin_port = htons(6654);
-
-	/* Set the network card in promiscuous mode */
-  	strncpy(ethreq.ifr_name,IF_NAME,IFNAMSIZ)-1;
-  	if (ioctl(ofp_io_fds[1], SIOCGIFFLAGS, &ethreq)==-1) {
-    	perror("ioctl (SIOCGIFCONF) 1\n");
-    	close(ofp_io_fds[1]);
-    	return -1;
-  	}
+		bzero(&local_sock_info[0], sizeof(local_sock_info[0]));
+    	local_sock_info[0].sin_family = PF_INET;
+    	local_sock_info[0].sin_addr.s_addr = inet_addr(inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr));
+    	local_sock_info[0].sin_port = htons(6654);
+		bind(ofp_io_fds[0],(struct sockaddr *)&local_sock_info[0],sizeof(local_sock_info[0]));
+    	int err = connect(ofp_io_fds[0],(struct sockaddr *)&sock_info,sizeof(sock_info));
+    	if (err == -1) {
+        	perror("Connection error.");
+			return err;
+    	}
+	}
+	if (restart & 2 == 2) {
+		Filter.len = sizeof(BPF_code)/sizeof(struct sock_filter);
+		Filter.filter = BPF_code;
+		if ((ofp_io_fds[1]=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) {
+	    	perror("raw socket");
+	    	return -1;
+		}
+		FD_ZERO(&ofp_io_ready[1]);
+    	FD_SET(ofp_io_fds[1],&ofp_io_ready[1]);
+		/* Set the network card in promiscuous mode */
+  		strncpy(ethreq.ifr_name,IF_NAME,IFNAMSIZ-1);
+  		if (ioctl(ofp_io_fds[1], SIOCGIFFLAGS, &ethreq)==-1) {
+    		perror("ioctl (SIOCGIFCONF) 1\n");
+    		close(ofp_io_fds[1]);
+    		return -1;
+  		}
   	
-  	ethreq.ifr_flags |= IFF_PROMISC;
-  	if (ioctl(ofp_io_fds[1], SIOCSIFFLAGS, &ethreq)==-1) {
-    	perror("ioctl (SIOCGIFCONF) 2\n");
-    	close(ofp_io_fds[1]);
-    	return -1;
-  	}
+  		ethreq.ifr_flags |= IFF_PROMISC;
+  		if (ioctl(ofp_io_fds[1], SIOCSIFFLAGS, &ethreq)==-1) {
+    		perror("ioctl (SIOCGIFCONF) 2\n");
+    		close(ofp_io_fds[1]);
+    		return -1;
+  		}
   	
-  	/* Attach the filter to the socket */
-  	if (setsockopt(ofp_io_fds[1], SOL_SOCKET, SO_ATTACH_FILTER, &Filter, sizeof(Filter))<0){
-    	perror("setsockopt: SO_ATTACH_FILTER");
-    	close(ofp_io_fds[1]);
-    	return -1;
-  	}
-
-	bind(ofp_io_fds[0],(struct sockaddr *)&local_sock_info[0],sizeof(local_sock_info[0]));
-    int err = connect(ofp_io_fds[0],(struct sockaddr *)&sock_info,sizeof(sock_info));
-    if (err == -1) {
-        perror("Connection error.");
-		return err;
-    }
-
-	 //--------------- configure TX ------------------
-	memset(&sll, 0, sizeof(sll));
-	sll.sll_family = PF_PACKET;
-	sll.sll_protocol = htons(ETH_P_IP);
-	sll.sll_halen = 6;
+  		/* Attach the filter to the socket */
+  		if (setsockopt(ofp_io_fds[1], SOL_SOCKET, SO_ATTACH_FILTER, &Filter, sizeof(Filter))<0){
+    		perror("setsockopt: SO_ATTACH_FILTER");
+    		close(ofp_io_fds[1]);
+    		return -1;
+  		}
+		//--------------- configure TX ------------------
+		memset(&sll, 0, sizeof(sll));
+		sll.sll_family = PF_PACKET;
+		sll.sll_protocol = htons(ETH_P_IP);
+		sll.sll_halen = 6;
 		
-	ioctl(ofp_io_fds[1], SIOCGIFINDEX, &ethreq); //ifr_name must be set to "eth?" ahead
-	sll.sll_ifindex = ethreq.ifr_ifindex;
+		ioctl(ofp_io_fds[1], SIOCGIFINDEX, &ethreq); //ifr_name must be set to "eth?" ahead
+		sll.sll_ifindex = ethreq.ifr_ifindex;
 	
-	printf("ifindex=%d\n",sll.sll_ifindex);
-
+		printf("ifindex=%d\n",sll.sll_ifindex);
+	}
 	return 0;
 }
 
@@ -155,9 +152,10 @@ void ofp_sockd_cp(void)
     		if (rxlen <= 0) {
       			printf("Error! recv(): len <= 0 at CP\n");
 				msg.sockfd = 0;
-				msg.type = DRIV_FAIL;
+				msg.type = DRIV_CP_FAIL;
 				close(ofp_io_fds[0]);
-				close(ofp_io_fds[1]);
+				//*restart |= CP_RESTART;
+				return;
     		}
 			else {
     			msg.sockfd = ofp_io_fds[0];

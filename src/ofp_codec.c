@@ -27,6 +27,8 @@ extern pid_t ofp_cp_pid;
 extern pid_t ofp_dp_pid;
 extern pid_t tmr_pid;
 
+extern uint8_t restart;
+
 /*============================ DECODE ===============================*/
 
 /*****************************************************
@@ -58,10 +60,11 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 		port_ccb->event = E_PACKET_IN;
 		return TRUE;
 	}
-	if (msg->type == DRIV_FAIL) {
+	if (msg->type == DRIV_CP_FAIL) {
 		kill(tmr_pid,SIGINT);
         kill(ofp_cp_pid,SIGINT);
-        kill(ofp_dp_pid,SIGINT);
+		restart |= CP_RESTART;
+        //kill(ofp_dp_pid,SIGINT);
 		//kill(getpid(),SIGINT);
 		return RESTART;
 	}
@@ -197,7 +200,7 @@ STATUS insert_node(host_learn_t **head, host_learn_t *node)
 
 	if (*head == NULL) {
 		*head = node;
-		return;
+		return TRUE;
 	}
 	for(cur=*head; cur->next!=NULL; cur=cur->next);
 	cur->next = node;
