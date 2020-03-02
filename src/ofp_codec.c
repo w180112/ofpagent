@@ -61,8 +61,8 @@ STATUS OFP_decode_frame(tOFP_MBX *mail, tOFP_PORT *port_ccb)
 		return TRUE;
 	}
 	if (msg->type == DRIV_CP_FAIL) {
-		kill(tmr_pid,SIGINT);
-        kill(ofp_cp_pid,SIGINT);
+		kill(tmr_pid,SIGTERM);
+        kill(ofp_cp_pid,SIGTERM);
 		restart |= CP_RESTART;
         //kill(ofp_dp_pid,SIGINT);
 		//kill(getpid(),SIGINT);

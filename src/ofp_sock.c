@@ -46,7 +46,7 @@ int OFP_SOCK_INIT()
 		{ 0x6, 0, 0, 0x00040000 },
 		{ 0x6, 0, 0, 0x00000000 },
 	};
-	if (restart & 1 == 1) {
+	if ((restart & 1) == 1) {
     	if ((ofp_io_fds[0]=socket(AF_INET, SOCK_STREAM, 0)) < 0) {
 	    	printf("socket");
 	    	return -1;
@@ -77,7 +77,7 @@ int OFP_SOCK_INIT()
 			return err;
     	}
 	}
-	if (restart & 2 == 2) {
+	if ((restart & 2) == 2) {
 		Filter.len = sizeof(BPF_code)/sizeof(struct sock_filter);
 		Filter.filter = BPF_code;
 		if ((ofp_io_fds[1]=socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IP))) < 0) {
@@ -154,8 +154,6 @@ void ofp_sockd_cp(void)
 				msg.sockfd = 0;
 				msg.type = DRIV_CP_FAIL;
 				close(ofp_io_fds[0]);
-				//*restart |= CP_RESTART;
-				return;
     		}
 			else {
     			msg.sockfd = ofp_io_fds[0];

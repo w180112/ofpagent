@@ -83,7 +83,7 @@ STATUS OFP_FSM(tOFP_PORT *port_ccb, U16 event)
         if (ofp_fsm_tbl[i].state == port_ccb->state)
             break;
 
-    if (ofp_fsm_tbl[i].state == S_INVALID){
+    if (ofp_fsm_tbl[i].state == S_INVALID) {
         DBG_OFP(DBGLVL1,port_ccb,"Error! unknown state(%d) specified for the event(%d)\n",
         	port_ccb->state,event);
         return FALSE;
@@ -170,7 +170,7 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
 {
 	unsigned char buffer[256];
 	ofp_switch_features_t ofp_switch_features;
-	struct ifaddrs *ifaddr;
+	//struct ifaddrs *ifaddr;
 	//struct ifaddrs *ifa;
 
 	ofp_switch_features.ofp_header.version = 0x04;
@@ -183,16 +183,16 @@ STATUS A_send_feature_reply(tOFP_PORT *port_ccb)
 	uint64_t tmp;
 	char *eth_name = IF_NAME;
 
-	if (getifaddrs(&ifaddr) == -1) {
+	/*if (getifaddrs(&ifaddr) == -1) {
     	perror("getifaddrs");
     	return -1;
-  	}
+  	}*/
     fd = socket(AF_INET, SOCK_DGRAM, 0);
  	ifr.ifr_addr.sa_family = AF_INET;
     strncpy(ifr.ifr_name,eth_name,IFNAMSIZ-1);
  	ioctl(fd,SIOCGIFHWADDR,&ifr);
     close(fd);
-	freeifaddrs(ifaddr);
+	//freeifaddrs(ifaddr);
 	ofp_switch_features.datapath_id = 0x0;
 	for(int i=5; i>=0; i--) {
         tmp = ifr.ifr_hwaddr.sa_data[i];
@@ -273,10 +273,10 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	ofp_multipart_t ofp_multipart;
 	struct ofp_port ofp_port_desc;
 	struct ifaddrs *ifaddr; 
-	//struct ifaddrs *ifa;
+	struct ifaddrs *ifa;
 	U8 buf[256];
 	uintptr_t buf_ptr;
-	//int i;
+	int i;
 
 	if (getifaddrs(&ifaddr) == -1) {
     	perror("getifaddrs");
@@ -290,7 +290,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 
 	memset(&ofp_port_desc,0,sizeof(struct ofp_port));
 
-#if 1
+#if 0
 	ofp_port_desc.port_no = htonl(1);
 	strcpy(ofp_port_desc.name,IF_NAME);
 	int fd;
@@ -307,7 +307,11 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
 	ofp_multipart.ofp_header.length += sizeof(struct ofp_port);
 #else
 	for(i=0,ifa=ifaddr; ifa != NULL; i++, ifa=ifa->ifa_next) {
-		if (((uintptr_t)(ifa->ifa_addr) & 0x00000000ffffffff) == 0 || ifa->ifa_addr->sa_family != AF_PACKET) 
+		ifa->ifa_addr = (struct sockaddr *)((uintptr_t)(ifa->ifa_addr) >> 32);
+		//if (((uintptr_t)(ifa->ifa_addr) & 0x00000000ffffffff) == 0 || ifa->ifa_addr->sa_family != AF_PACKET) 
+		if (ifa->ifa_addr == NULL)
+			continue;
+		if (ifa->ifa_addr->sa_family != AF_PACKET)
 			continue;
 		ofp_port_desc.port_no = htonl(i);
 		strcpy(ofp_port_desc.name,ifa->ifa_name);
@@ -320,7 +324,7 @@ STATUS A_send_multipart_reply(tOFP_PORT *port_ccb)
  		ioctl(fd,SIOCGIFHWADDR,&ifr);
     	close(fd);
     	memcpy(ofp_port_desc.hw_addr,(unsigned char *)ifr.ifr_hwaddr.sa_data,OFP_ETH_ALEN);
-		memcpy(buf+buf_ptr,&ofp_port_desc,sizeof(struct ofp_port));
+		memcpy((U8 *)buf_ptr,&ofp_port_desc,sizeof(struct ofp_port));
 		buf_ptr += sizeof(struct ofp_port);
 		ofp_multipart.ofp_header.length += sizeof(struct ofp_port);
 	}

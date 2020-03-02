@@ -77,7 +77,7 @@ int ofpdInit(void)
 	tmr_pid = tmrInit();
     
     //--------- default of all ports ----------
-	for(i=1; i<=MAX_USER_PORT_NUM; i++){
+	for(i=0; i<=MAX_USER_PORT_NUM; i++){
 		ofp_ports[i].enable = FALSE;
 		ofp_ports[i].query_cnt = 1;
 		ofp_ports[i].state = S_CLOSED;
@@ -131,11 +131,9 @@ int main(int argc, char **argv)
 	OFP_ipc_init();
 	if ((ofp_cp_pid=fork()) == 0) {
    		ofp_sockd_cp();
-		return 0;
     }
 	if ((ofp_dp_pid=fork()) == 0) {
    		ofp_sockd_dp();
-		return 0;
     }
     signal(SIGINT,OFP_bye);
     
@@ -175,12 +173,13 @@ int main(int argc, char **argv)
 				}
 				restart = 0;
 				if ((ofp_cp_pid=fork()) == 0) {
+					signal(SIGINT,SIG_DFL);
    					ofp_sockd_cp();
-					return 0;
 				}
 				ofp_ports[0].sockfd = ofp_io_fds[0];
 				OFP_FSM(&ofp_ports[0], E_START);
 				puts("====================Restart connection.====================");
+				continue;
 			}
 			OFP_FSM(&ofp_ports[0], ofp_ports[0].event);
 			break;
